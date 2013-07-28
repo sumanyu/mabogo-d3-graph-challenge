@@ -1,0 +1,22 @@
+[
+    {"id":1,"name":"Myriel","type":1},
+    {"id":2,"name":"Napoleon","type":1},
+    {"id":3,"name":"Mlle.Baptistine","type":1},
+    {"id":4,"name":"Mme.Magloire","type":1},
+    {"id":5,"name":"CountessdeLo","type":1},
+    {"id":6,"name":"Geborand","type":1},
+    {"id":7,"name":"Champtercier","type":1},
+    {"id":8,"name":"Cravatte","type":1},
+    {"id":9,"name":"Count","type":1},
+    {"id":10,"name":"OldMan","type":1},
+    {"id":11,"name":"Labarre","type":2},
+    {"id":12,"name":"Valjean","type":2},
+    {"id":13,"name":"Marguerite","type":3},
+    {"id":14,"name":"Mme.deR","type":2},
+    {"id":15,"name":"Isabeau","type":2},
+    {"id":16,"name":"Gervais","type":2},
+    {"id":17,"name":"Tholomyes","type":3},
+    {"id":18,"name":"Listolier","type":3},
+    {"id":19,"name":"Fameuil","type":3},
+    {"id":20,"name":"Blacheville","type":3}
+    ]
