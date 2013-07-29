@@ -18,7 +18,7 @@
       this.graphWidth = 800;
       this.graphHeight = 600;
       this.colorScale = d3.scale.category20();
-      return this.force = d3.layout.force().size([this.graphWidth, this.graphHeight]).linkDistance(110).charge(-500);
+      return this.force = d3.layout.force().size([this.graphWidth, this.graphHeight]).linkDistance(110).charge(-600);
     };
 
     MabogoGraph.prototype._setupData = function(data) {
@@ -64,19 +64,41 @@
     MabogoGraph.prototype._addPaths = function() {
       return this.path = this.svg.append("svg:g").selectAll("path").data(this.force.links()).enter().append("svg:path").attr("class", function(d) {
         return "link " + d.type;
-      }).attr("marker-end", function(d) {
+      }).attr("stroke-opacity", 0.5).attr("marker-end", function(d) {
         return "url(#" + d.type + ")";
       });
     };
 
     MabogoGraph.prototype._addNodes = function() {
-      var _this = this;
+      var context,
+        _this = this;
 
+      context = this;
       return this.node = this.svg.append("svg:g").selectAll("circle").data(this.force.nodes()).enter().append("svg:circle").attr("r", function(d) {
         return d.radius;
       }).style("fill", function(d) {
         return _this.colorScale(d.type);
-      }).call(this.force.drag);
+      }).call(this.force.drag).on("mouseover", function(d, i) {
+        return context._showDetails(context, this, d);
+      }).on("mouseout", function(d, i) {
+        return context._hideDetails(context, this, d);
+      });
+    };
+
+    MabogoGraph.prototype._showDetails = function(context, obj, d) {
+      context.path.attr("stroke-opacity", function(l) {
+        if (l.source === d || l.target === d) {
+          return 1.0;
+        } else {
+          return 0.5;
+        }
+      });
+      return d3.select(obj).style("fill", "#ddd");
+    };
+
+    MabogoGraph.prototype._hideDetails = function(context, obj, d) {
+      context.path.attr("stroke-opacity", 0.5);
+      return d3.select(obj).style("fill", this.colorScale(d.type));
     };
 
     MabogoGraph.prototype._addText = function() {

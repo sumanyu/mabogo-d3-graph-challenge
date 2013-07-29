@@ -21,7 +21,7 @@ class MabogoGraph
     @force = d3.layout.force()
               .size([@graphWidth, @graphHeight])
               .linkDistance(110) # Higher # -> higher link distance
-              .charge(-500) # Lower -> higher network distance 
+              .charge(-600) # Lower -> higher network distance 
 
   # Nodes expect the following fields
   # Randomly assigned values if not supplied
@@ -91,15 +91,30 @@ class MabogoGraph
         .data(@force.links())
       .enter().append("svg:path")
         .attr("class", (d) -> "link #{d.type}")
+        .attr("stroke-opacity", 0.5)
         .attr("marker-end", (d) -> "url(##{d.type})")
 
   _addNodes: ->
+    context = @
     @node = @svg.append("svg:g").selectAll("circle")
                   .data(@force.nodes())
                 .enter().append("svg:circle")
                   .attr("r", (d)-> d.radius)
                   .style("fill", (d) => @colorScale(d.type))
                   .call(@force.drag)
+                  .on("mouseover", (d, i) -> context._showDetails(context, @, d))
+                  .on("mouseout", (d, i) -> context._hideDetails(context, @, d))
+
+  _showDetails: (context, obj, d) ->
+    context.path.attr("stroke-opacity", (l) -> 
+      if l.source == d or l.target == d then 1.0 else 0.5)
+
+    d3.select(obj).style("fill", "#ddd")
+
+  _hideDetails: (context, obj, d) ->
+    context.path.attr("stroke-opacity", 0.5)
+
+    d3.select(obj).style("fill", @colorScale(d.type))
 
   _addText: ->
     @text = @svg.append("svg:g").selectAll("g")
