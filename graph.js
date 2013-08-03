@@ -7,6 +7,7 @@
     function MabogoGraph(body, data) {
       this.body = body;
       this._updateTick = __bind(this._updateTick, this);
+      this._freezeNodes = __bind(this._freezeNodes, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
       this._setup();
@@ -24,6 +25,7 @@
     MabogoGraph.prototype._updateData = function(nodes, links) {
       var circleRadius, countExtent, nodesMap;
 
+      console.log(nodes, links);
       countExtent = d3.extent(nodes, function(d) {
         return d.links;
       });
@@ -36,6 +38,7 @@
         link.source = nodesMap.get(link.source);
         return link.target = nodesMap.get(link.target);
       });
+      console.log(nodes, links);
       return this.force.nodes(nodes).links(links).on("tick", this._updateTick).start();
     };
 
@@ -53,10 +56,15 @@
       this.svg.attr('width', this.graphWidth).attr("height", this.graphHeight);
       this._addMarkers();
       this.pathG = this.svg.append("svg:g").attr("class", "pathG");
-      this._updateLinks();
       this.nodeG = this.svg.append("svg:g").attr("class", "nodeG");
-      this._updateNodes();
       this.textG = this.svg.append("svg:g").attr("class", "textG");
+      this._updateChart();
+      return window.setTimeout(this._freezeNodes, 5000);
+    };
+
+    MabogoGraph.prototype._updateChart = function() {
+      this._updateLinks();
+      this._updateNodes();
       return this._updateText();
     };
 
@@ -110,12 +118,25 @@
 
     MabogoGraph.prototype._updateText = function() {
       this.text = this.textG.selectAll("g").data(this.force.nodes());
-      this.text.enter().append("svg:g").append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", "shadow").text(function(d) {
+      return this.text.enter().append("svg:g").append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", "shadow").text(function(d) {
         return d.name;
       });
-      return this.text.append("svg:text").attr("x", 8).attr("y", ".31em").text(function(d) {
-        return d.name;
+    };
+
+    MabogoGraph.prototype._freezeNodes = function() {
+      var links, nodes;
+
+      nodes = this.force.nodes();
+      links = this.force.links();
+      nodes.forEach(function(node) {
+        return node.fixed = true;
       });
+      links.forEach(function(link) {
+        link.source = link.source.id;
+        return link.target = link.target.id;
+      });
+      this._updateData(nodes, links);
+      return this._updateChart();
     };
 
     MabogoGraph.prototype._updateTick = function() {

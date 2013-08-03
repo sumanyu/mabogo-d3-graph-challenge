@@ -35,6 +35,7 @@ class MabogoGraph
 
   _updateData: (nodes, links) ->
     # Get max # of links
+    console.log nodes, links
     countExtent = d3.extent(nodes, (d) -> d.links)
     circleRadius = d3.scale.sqrt().range([6, 16]).domain(countExtent)
 
@@ -48,6 +49,8 @@ class MabogoGraph
     links.forEach (link) ->
       link.source = nodesMap.get(link.source)
       link.target = nodesMap.get(link.target)
+
+    console.log nodes, links
 
     @force.nodes(nodes)
       .links(links)
@@ -71,16 +74,19 @@ class MabogoGraph
     @pathG = @svg.append("svg:g")
               .attr("class", "pathG")
 
-    @_updateLinks()
-
     @nodeG = @svg.append("svg:g")
-              .attr("class", "nodeG")
-
-    @_updateNodes()
+              .attr("class", "nodeG")    
 
     @textG = @svg.append("svg:g")
               .attr("class", "textG")
 
+    @_updateChart()
+
+    window.setTimeout(@_freezeNodes, 5000)
+
+  _updateChart: ->
+    @_updateLinks()
+    @_updateNodes()
     @_updateText()
 
   # Adds arrow tips
@@ -147,10 +153,20 @@ class MabogoGraph
         .attr("class", "shadow")
         .text((d) -> d.name)
 
-    @text.append("svg:text")
-        .attr("x", 8)
-        .attr("y", ".31em")
-        .text((d) -> d.name)
+  _freezeNodes: =>
+    nodes = @force.nodes()
+    links = @force.links()
+
+    nodes.forEach (node) ->
+      node.fixed = true
+
+    links.forEach (link) ->
+      link.source = link.source.id
+      link.target = link.target.id
+
+    @_updateData(nodes, links)
+
+    @_updateChart()
 
   _updateTick: =>
     @path.attr("d", (d) ->
@@ -161,6 +177,7 @@ class MabogoGraph
 
     @node.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")") 
     @text.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")")
+
 $ ->
   $("#mobogo-graph-container").each ->
     d3.json "data.json", (err, data) =>
