@@ -6,11 +6,11 @@
   MabogoGraph = (function() {
     function MabogoGraph(body, data) {
       this.body = body;
-      this._updateGraph = __bind(this._updateGraph, this);
+      this._updateTick = __bind(this._updateTick, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
       this._setup();
-      this._setupData(data);
+      this._updateData(data.nodes, data.links);
       this._drawChart();
     }
 
@@ -21,22 +21,22 @@
       return this.force = d3.layout.force().size([this.graphWidth, this.graphHeight]).linkDistance(110).charge(-600);
     };
 
-    MabogoGraph.prototype._setupData = function(data) {
+    MabogoGraph.prototype._updateData = function(nodes, links) {
       var circleRadius, countExtent, nodesMap;
 
-      countExtent = d3.extent(data.nodes, function(d) {
+      countExtent = d3.extent(nodes, function(d) {
         return d.links;
       });
       circleRadius = d3.scale.sqrt().range([6, 16]).domain(countExtent);
-      data.nodes.forEach(function(node) {
+      nodes.forEach(function(node) {
         return node.radius = circleRadius(node.links);
       });
-      nodesMap = this._mapNodes(data.nodes);
-      data.links.forEach(function(link) {
+      nodesMap = this._mapNodes(nodes);
+      links.forEach(function(link) {
         link.source = nodesMap.get(link.source);
         return link.target = nodesMap.get(link.target);
       });
-      return this.force.nodes(data.nodes).links(data.links).on("tick", this._updateGraph).start();
+      return this.force.nodes(nodes).links(links).on("tick", this._updateTick).start();
     };
 
     MabogoGraph.prototype._mapNodes = function(nodes) {
@@ -52,29 +52,35 @@
     MabogoGraph.prototype._drawChart = function() {
       this.svg.attr('width', this.graphWidth).attr("height", this.graphHeight);
       this._addMarkers();
-      this._addPaths();
-      this._addNodes();
-      return this._addText();
+      this.pathG = this.svg.append("svg:g").attr("class", "pathG");
+      this._updateLinks();
+      this.nodeG = this.svg.append("svg:g").attr("class", "nodeG");
+      this._updateNodes();
+      this.textG = this.svg.append("svg:g").attr("class", "textG");
+      return this._updateText();
     };
 
     MabogoGraph.prototype._addMarkers = function() {
       return this.svg.append("svg:defs").selectAll("marker").data(["friend", "acquaintance"]).enter().append("svg:marker").attr("id", String).attr("viewBox", "0 -5 10 10").attr("refX", 15).attr("refY", -1.5).attr("markerWidth", 10).attr("markerHeight", 10).attr("orient", "auto").append("svg:path").attr("d", "M0,-5L10,0L0,5");
     };
 
-    MabogoGraph.prototype._addPaths = function() {
-      return this.path = this.svg.append("svg:g").selectAll("path").data(this.force.links()).enter().append("svg:path").attr("class", function(d) {
+    MabogoGraph.prototype._updateLinks = function() {
+      this.path = this.pathG.selectAll("path.link").data(this.force.links());
+      this.path.enter().append("svg:path").attr("class", function(d) {
         return "link " + d.type;
       }).attr("stroke-opacity", 0.5).attr("marker-end", function(d) {
         return "url(#" + d.type + ")";
       });
+      return this.path.exit().remove();
     };
 
-    MabogoGraph.prototype._addNodes = function() {
+    MabogoGraph.prototype._updateNodes = function() {
       var context,
         _this = this;
 
       context = this;
-      return this.node = this.svg.append("svg:g").selectAll("circle").data(this.force.nodes()).enter().append("svg:circle").attr("r", function(d) {
+      this.node = this.nodeG.selectAll("circle.node").data(this.force.nodes());
+      this.node.enter().append("svg:circle").attr("class", "node").attr("r", function(d) {
         return d.radius;
       }).style("fill", function(d) {
         return _this.colorScale(d.type);
@@ -83,6 +89,7 @@
       }).on("mouseout", function(d, i) {
         return context._hideDetails(context, this, d);
       });
+      return this.node.exit().remove();
     };
 
     MabogoGraph.prototype._showDetails = function(context, obj, d) {
@@ -101,9 +108,9 @@
       return d3.select(obj).style("fill", this.colorScale(d.type));
     };
 
-    MabogoGraph.prototype._addText = function() {
-      this.text = this.svg.append("svg:g").selectAll("g").data(this.force.nodes()).enter().append("svg:g");
-      this.text.append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", "shadow").text(function(d) {
+    MabogoGraph.prototype._updateText = function() {
+      this.text = this.textG.selectAll("g").data(this.force.nodes());
+      this.text.enter().append("svg:g").append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", "shadow").text(function(d) {
         return d.name;
       });
       return this.text.append("svg:text").attr("x", 8).attr("y", ".31em").text(function(d) {
@@ -111,7 +118,7 @@
       });
     };
 
-    MabogoGraph.prototype._updateGraph = function() {
+    MabogoGraph.prototype._updateTick = function() {
       this.path.attr("d", function(d) {
         var _this = this;
 

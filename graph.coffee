@@ -6,7 +6,7 @@ class MabogoGraph
     @svg = d3.select(@vis[0])
 
     @_setup()
-    @_setupData(data)
+    @_updateData(data.nodes, data.links)
     @_drawChart()
 
   _setup: ->
@@ -33,25 +33,25 @@ class MabogoGraph
     # fixed - a boolean indicating whether node position is locked.
     # weight - the node weight; the number of associated links.
 
-  _setupData: (data) ->
+  _updateData: (nodes, links) ->
     # Get max # of links
-    countExtent = d3.extent(data.nodes, (d) -> d.links)
+    countExtent = d3.extent(nodes, (d) -> d.links)
     circleRadius = d3.scale.sqrt().range([6, 16]).domain(countExtent)
 
-    data.nodes.forEach (node) ->
+    nodes.forEach (node) ->
       # Size radius according to the # of links
       node.radius = circleRadius(node.links)
 
     # map of id -> node
-    nodesMap = @_mapNodes(data.nodes)
+    nodesMap = @_mapNodes(nodes)
 
-    data.links.forEach (link) ->
+    links.forEach (link) ->
       link.source = nodesMap.get(link.source)
       link.target = nodesMap.get(link.target)
 
-    @force.nodes(data.nodes)
-      .links(data.links)
-      .on("tick", @_updateGraph).start()
+    @force.nodes(nodes)
+      .links(links)
+      .on("tick", @_updateTick).start()
 
   # Maps node.id -> node
   _mapNodes: (nodes) ->
@@ -66,9 +66,22 @@ class MabogoGraph
       .attr("height", @graphHeight)
 
     @_addMarkers()
-    @_addPaths()
-    @_addNodes()
-    @_addText()
+
+    # Draw links before nodes so nodes can sit on top
+    @pathG = @svg.append("svg:g")
+              .attr("class", "pathG")
+
+    @_updateLinks()
+
+    @nodeG = @svg.append("svg:g")
+              .attr("class", "nodeG")
+
+    @_updateNodes()
+
+    @textG = @svg.append("svg:g")
+              .attr("class", "textG")
+
+    @_updateText()
 
   # Adds arrow tips
   _addMarkers: ->
@@ -86,24 +99,31 @@ class MabogoGraph
         .attr("d", "M0,-5L10,0L0,5")
 
   # Draw path from source to target
-  _addPaths: ->
-    @path = @svg.append("svg:g").selectAll("path")
-        .data(@force.links())
-      .enter().append("svg:path")
-        .attr("class", (d) -> "link #{d.type}")
-        .attr("stroke-opacity", 0.5)
-        .attr("marker-end", (d) -> "url(##{d.type})")
+  _updateLinks: ->
+    @path = @pathG.selectAll("path.link")
+              .data(@force.links())
 
-  _addNodes: ->
+    @path.enter().append("svg:path")
+      .attr("class", (d) -> "link #{d.type}")
+      .attr("stroke-opacity", 0.5)
+      .attr("marker-end", (d) -> "url(##{d.type})")
+
+    @path.exit().remove()
+
+  _updateNodes: ->
     context = @
-    @node = @svg.append("svg:g").selectAll("circle")
-                  .data(@force.nodes())
-                .enter().append("svg:circle")
-                  .attr("r", (d)-> d.radius)
-                  .style("fill", (d) => @colorScale(d.type))
-                  .call(@force.drag)
-                  .on("mouseover", (d, i) -> context._showDetails(context, @, d))
-                  .on("mouseout", (d, i) -> context._hideDetails(context, @, d))
+    @node = @nodeG.selectAll("circle.node")
+              .data(@force.nodes())
+
+    @node.enter().append("svg:circle")
+      .attr("class", "node")
+      .attr("r", (d)-> d.radius)
+      .style("fill", (d) => @colorScale(d.type))
+      .call(@force.drag)
+      .on("mouseover", (d, i) -> context._showDetails(context, @, d))
+      .on("mouseout", (d, i) -> context._hideDetails(context, @, d))
+
+    @node.exit().remove()
 
   _showDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) -> 
@@ -116,12 +136,12 @@ class MabogoGraph
 
     d3.select(obj).style("fill", @colorScale(d.type))
 
-  _addText: ->
-    @text = @svg.append("svg:g").selectAll("g")
+  _updateText: ->
+    @text = @textG.selectAll("g")
               .data(@force.nodes())
-            .enter().append("svg:g")
-
-    @text.append("svg:text")
+            
+    @text.enter().append("svg:g")
+        .append("svg:text")
         .attr("x", 8)
         .attr("y", ".31em")
         .attr("class", "shadow")
@@ -132,7 +152,7 @@ class MabogoGraph
         .attr("y", ".31em")
         .text((d) -> d.name)
 
-  _updateGraph: =>
+  _updateTick: =>
     @path.attr("d", (d) ->
       do (dx = d.target.x - d.source.x, dy = d.target.y - d.source.y) =>
         dr = Math.sqrt(dx * dx + dy * dy)
