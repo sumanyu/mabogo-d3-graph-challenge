@@ -117,10 +117,17 @@
     };
 
     MabogoGraph.prototype._updateText = function() {
+      var g;
+
       this.text = this.textG.selectAll("g").data(this.force.nodes());
-      return this.text.enter().append("svg:g").append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", "shadow").text(function(d) {
+      g = this.text.enter().append("svg:g");
+      g.append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", "shadow").text(function(d) {
         return d.name;
       });
+      g.append("svg:text").attr("x", 8).attr("y", ".31em").text(function(d) {
+        return d.name;
+      });
+      return this.text.exit().remove();
     };
 
     MabogoGraph.prototype._freezeNodes = function() {

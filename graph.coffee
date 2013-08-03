@@ -146,12 +146,20 @@ class MabogoGraph
     @text = @textG.selectAll("g")
               .data(@force.nodes())
             
-    @text.enter().append("svg:g")
-        .append("svg:text")
+    g = @text.enter().append("svg:g")
+
+    g.append("svg:text")
         .attr("x", 8)
         .attr("y", ".31em")
         .attr("class", "shadow")
         .text((d) -> d.name)
+
+    g.append("svg:text")
+        .attr("x", 8)
+        .attr("y", ".31em")
+        .text((d) -> d.name)
+
+    @text.exit().remove()
 
   _freezeNodes: =>
     nodes = @force.nodes()
