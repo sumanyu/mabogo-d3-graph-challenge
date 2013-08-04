@@ -109,6 +109,9 @@ class MabogoGraph
     # Keep track of whether nodes are frozen
     @frozen = false
 
+    # Keep track of node's base XY positions
+    @fromXY = d3.map()
+
   # Nodes expect the following fields
   # Randomly assigned values if not supplied
     # index - the zero-based index of the node within the nodes array.
@@ -211,109 +214,88 @@ class MabogoGraph
 
     @node.exit().remove()
 
+  # Returns a map of A - B
+  _differenceOfMapAB: (A, B) ->
+    retMap = d3.map()
+    A.keys().forEach (key) ->
+      retMap.set(key, A.get(key)) unless B.has(key)
+
+    retMap
+
   # Where the magic happens
-  _showcaseSubnetwork: (d) ->
-    # Overview mode?
-    unless @toXY?
-      @_expandNodes(d)
-    else
-      if d.id is @centerNode.id
-        @_restoreNodes(@fromXY)
-      else
-        @_expandNodes(d)
+  _showcaseSubnetwork: (center) ->
 
-  _setFromXY: (node) ->
-    console.log @fromXY?
-    unless @fromXY? 
+    # Restore all if old center node is clicked
+    if center.id is @centerNode?.id
+      @_updateGraph(@fromXY)
       @fromXY = d3.map()
-      @fromXY.set(node.id, {x: node.x, y: node.y})
+      @centerNode = null
     else
-      @fromXY.set(node.id, {x: node.x, y: node.y}) unless @fromXY.has(node.id)
-    console.log @fromXY
+      showcasedNodes = []
+      @centerNode = center
 
-  _setToXY: (node, xy) ->
-    console.log @toXY?
-    unless @toXY?
-      @toXY = d3.map()
+      toXY = d3.map()
+      fromXY = d3.map()
 
-    @toXY.set(node.id, xy)
-    console.log @toXY
+      # Set centerNode
+      @_setFromXY(fromXY, center)
+      toXY.set(center.id, {x: @graphWidth/2, y: @graphHeight/2})
 
-  _expandNodes: (center) ->
+      # Add all associated 1 degree nodes
+      @force.links().forEach (link) =>
+        if center.id in [link.source.id, link.target.id]
+          node = if center.id is link.source.id then link.target else link.source
+          @_setFromXY(fromXY, node)
+          showcasedNodes.push node
 
-    showcasedNodes = []
-    @centerNode = center
+      # Set polar x, y for each node
+      radialMap = RadialPlacement()
+                    .center(toXY.get(center.id))
+                    .keys(showcasedNodes.map (node) -> node.id)
 
-    # Set centerNode
-    @_setFromXY(center)
-    @_setToXY(center, {x: @graphWidth/2, y: @graphHeight/2})
+      showcasedNodes.forEach (node) ->
+        toXY.set(node.id, radialMap(node.id))
 
-    # Add all associated 1 degree nodes
-    @force.links().forEach (link) =>
-      if center.id in [link.source.id, link.target.id]
+      # All nodes that exist in @fromXY but not in fromXY
+      # These nodes will be restored to original XY
+      restoreXY = @_differenceOfMapAB(@fromXY, fromXY)
 
-        # @showcase.links.push link
+      console.log toXY, fromXY, restoreXY
 
-        node = if center.id is link.source.id then link.target else link.source
-        @_setFromXY(node)
-        showcasedNodes.push node
+      # Translate new nodes
+      @_updateGraph(toXY)
 
-    # Set polar x, y for each node
-    radialMap = RadialPlacement()
-                  .center(@toXY.get(center.id))
-                  .keys(showcasedNodes.map (node) -> node.id)
+      # Restore old nodes
+      @_updateGraph(restoreXY)
 
-    showcasedNodes.forEach (node) ->
-      @_setToXY(node, radialMap(node.id))
+      @fromXY = fromXY
 
+  _updateGraph: (mapXY) ->
     # Translate nodes, text and path
     [@node, @text].forEach (selector) =>
       selector.transition()
       .attr("transform", (d) => 
-          d.x = @toXY.get(d.id)?.x ? d.x
-          d.y = @toXY.get(d.id)?.y ? d.y
+          d.x = mapXY.get(d.id)?.x ? d.x
+          d.y = mapXY.get(d.id)?.y ? d.y
           "translate(" + d.x + "," + d.y + ")" )
 
     @path.transition()
       .attr("d", (d) =>
-          d.target.x = @toXY.get(d.target.id)?.x ? d.target.x
-          d.source.x = @toXY.get(d.source.id)?.x ? d.source.x
+          d.target.x = mapXY.get(d.target.id)?.x ? d.target.x
+          d.source.x = mapXY.get(d.source.id)?.x ? d.source.x
           dx = d.target.x - d.source.x
 
-          d.target.y = @toXY.get(d.target.id)?.y ? d.target.y
-          d.source.y = @toXY.get(d.source.id)?.y ? d.source.y
+          d.target.y = mapXY.get(d.target.id)?.y ? d.target.y
+          d.source.y = mapXY.get(d.source.id)?.y ? d.source.y
           dy = d.target.y - d.source.y
 
           dr = Math.sqrt(dx * dx + dy * dy)
           "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
       )
 
-  _restoreNodes: (fromXY) ->
-    # Restore nodes, text and path to base x,y
-    [@node, @text].forEach (selector) =>
-      selector.transition()
-        .attr("transform", (d) => 
-          d.x = fromXY.get(d.id)?.x ? d.x
-          d.y = fromXY.get(d.id)?.y ? d.y
-          "translate(" + d.x + "," + d.y + ")" 
-        )
-        
-    @path.transition()
-      .attr("d", (d) =>
-          d.target.x = fromXY.get(d.target.id)?.x ? d.target.x
-          d.source.x = fromXY.get(d.source.id)?.x ? d.source.x
-          dx = d.target.x - d.source.x
-
-          d.target.y = fromXY.get(d.target.id)?.y ? d.target.y
-          d.source.y = fromXY.get(d.source.id)?.y ? d.source.y
-          dy = d.target.y - d.source.y
-
-          dr = Math.sqrt(dx * dx + dy * dy)
-          "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
-      )
-
-    fromXY = null
-    @toXY = null
+  _setFromXY: (fromXY, node) ->
+    val = @fromXY.has(node.id) || {x: node.x, y: node.y}
+    fromXY.set( node.id, val )
 
   _showDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) -> 

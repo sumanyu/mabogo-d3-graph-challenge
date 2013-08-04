@@ -102,7 +102,8 @@
       this.colorScale = d3.scale.category20();
       this.force = d3.layout.force().size([this.graphWidth, this.graphHeight]).linkDistance(110).charge(-600);
       this.showcaseForce = d3.layout.force().size([this.graphWidth, this.graphHeight]).linkDistance(110).charge(-600);
-      return this.frozen = false;
+      this.frozen = false;
+      return this.fromXY = d3.map();
     };
 
     MabogoGraph.prototype._updateData = function(nodes, links) {
@@ -197,121 +198,93 @@
       return this.node.exit().remove();
     };
 
-    MabogoGraph.prototype._showcaseSubnetwork = function(d) {
-      if (this.toXY == null) {
-        return this._expandNodes(d);
-      } else {
-        if (d.id === this.centerNode.id) {
-          return this._restoreNodes(this.fromXY);
-        } else {
-          return this._expandNodes(d);
+    MabogoGraph.prototype._differenceOfMapAB = function(A, B) {
+      var retMap;
+
+      retMap = d3.map();
+      A.keys().forEach(function(key) {
+        if (!B.has(key)) {
+          return retMap.set(key, A.get(key));
         }
-      }
+      });
+      return retMap;
     };
 
-    MabogoGraph.prototype._setFromXY = function(node) {
-      console.log(this.fromXY != null);
-      if (this.fromXY == null) {
-        this.fromXY = d3.map();
-        this.fromXY.set(node.id, {
-          x: node.x,
-          y: node.y
-        });
-      } else {
-        if (!this.fromXY.has(node.id)) {
-          this.fromXY.set(node.id, {
-            x: node.x,
-            y: node.y
-          });
-        }
-      }
-      return console.log(this.fromXY);
-    };
-
-    MabogoGraph.prototype._setToXY = function(node, xy) {
-      console.log(this.toXY != null);
-      if (this.toXY == null) {
-        this.toXY = d3.map();
-      }
-      this.toXY.set(node.id, xy);
-      return console.log(this.toXY);
-    };
-
-    MabogoGraph.prototype._expandNodes = function(center) {
-      var radialMap, showcasedNodes,
+    MabogoGraph.prototype._showcaseSubnetwork = function(center) {
+      var fromXY, radialMap, restoreXY, showcasedNodes, toXY, _ref,
         _this = this;
 
-      showcasedNodes = [];
-      this.centerNode = center;
-      this._setFromXY(center);
-      this._setToXY(center, {
-        x: this.graphWidth / 2,
-        y: this.graphHeight / 2
-      });
-      this.force.links().forEach(function(link) {
-        var node, _ref;
-
-        if ((_ref = center.id) === link.source.id || _ref === link.target.id) {
-          node = center.id === link.source.id ? link.target : link.source;
-          _this._setFromXY(node);
-          return showcasedNodes.push(node);
-        }
-      });
-      radialMap = RadialPlacement().center(this.toXY.get(center.id)).keys(showcasedNodes.map(function(node) {
-        return node.id;
-      }));
-      showcasedNodes.forEach(function(node) {
-        return this._setToXY(node, radialMap(node.id));
-      });
-      [this.node, this.text].forEach(function(selector) {
-        return selector.transition().attr("transform", function(d) {
-          var _ref, _ref1, _ref2, _ref3;
-
-          d.x = (_ref = (_ref1 = _this.toXY.get(d.id)) != null ? _ref1.x : void 0) != null ? _ref : d.x;
-          d.y = (_ref2 = (_ref3 = _this.toXY.get(d.id)) != null ? _ref3.y : void 0) != null ? _ref2 : d.y;
-          return "translate(" + d.x + "," + d.y + ")";
+      if (center.id === ((_ref = this.centerNode) != null ? _ref.id : void 0)) {
+        this._updateGraph(this.fromXY);
+        this.fromXY = d3.map();
+        return this.centerNode = null;
+      } else {
+        showcasedNodes = [];
+        this.centerNode = center;
+        toXY = d3.map();
+        fromXY = d3.map();
+        this._setFromXY(fromXY, center);
+        toXY.set(center.id, {
+          x: this.graphWidth / 2,
+          y: this.graphHeight / 2
         });
-      });
-      return this.path.transition().attr("d", function(d) {
-        var dr, dx, dy, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
+        this.force.links().forEach(function(link) {
+          var node, _ref1;
 
-        d.target.x = (_ref = (_ref1 = _this.toXY.get(d.target.id)) != null ? _ref1.x : void 0) != null ? _ref : d.target.x;
-        d.source.x = (_ref2 = (_ref3 = _this.toXY.get(d.source.id)) != null ? _ref3.x : void 0) != null ? _ref2 : d.source.x;
-        dx = d.target.x - d.source.x;
-        d.target.y = (_ref4 = (_ref5 = _this.toXY.get(d.target.id)) != null ? _ref5.y : void 0) != null ? _ref4 : d.target.y;
-        d.source.y = (_ref6 = (_ref7 = _this.toXY.get(d.source.id)) != null ? _ref7.y : void 0) != null ? _ref6 : d.source.y;
-        dy = d.target.y - d.source.y;
-        dr = Math.sqrt(dx * dx + dy * dy);
-        return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
-      });
+          if ((_ref1 = center.id) === link.source.id || _ref1 === link.target.id) {
+            node = center.id === link.source.id ? link.target : link.source;
+            _this._setFromXY(fromXY, node);
+            return showcasedNodes.push(node);
+          }
+        });
+        radialMap = RadialPlacement().center(toXY.get(center.id)).keys(showcasedNodes.map(function(node) {
+          return node.id;
+        }));
+        showcasedNodes.forEach(function(node) {
+          return toXY.set(node.id, radialMap(node.id));
+        });
+        restoreXY = this._differenceOfMapAB(this.fromXY, fromXY);
+        console.log(toXY, fromXY, restoreXY);
+        this._updateGraph(toXY);
+        this._updateGraph(restoreXY);
+        return this.fromXY = fromXY;
+      }
     };
 
-    MabogoGraph.prototype._restoreNodes = function(fromXY) {
+    MabogoGraph.prototype._updateGraph = function(mapXY) {
       var _this = this;
 
       [this.node, this.text].forEach(function(selector) {
         return selector.transition().attr("transform", function(d) {
           var _ref, _ref1, _ref2, _ref3;
 
-          d.x = (_ref = (_ref1 = fromXY.get(d.id)) != null ? _ref1.x : void 0) != null ? _ref : d.x;
-          d.y = (_ref2 = (_ref3 = fromXY.get(d.id)) != null ? _ref3.y : void 0) != null ? _ref2 : d.y;
+          d.x = (_ref = (_ref1 = mapXY.get(d.id)) != null ? _ref1.x : void 0) != null ? _ref : d.x;
+          d.y = (_ref2 = (_ref3 = mapXY.get(d.id)) != null ? _ref3.y : void 0) != null ? _ref2 : d.y;
           return "translate(" + d.x + "," + d.y + ")";
         });
       });
-      this.path.transition().attr("d", function(d) {
+      return this.path.transition().attr("d", function(d) {
         var dr, dx, dy, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
 
-        d.target.x = (_ref = (_ref1 = fromXY.get(d.target.id)) != null ? _ref1.x : void 0) != null ? _ref : d.target.x;
-        d.source.x = (_ref2 = (_ref3 = fromXY.get(d.source.id)) != null ? _ref3.x : void 0) != null ? _ref2 : d.source.x;
+        d.target.x = (_ref = (_ref1 = mapXY.get(d.target.id)) != null ? _ref1.x : void 0) != null ? _ref : d.target.x;
+        d.source.x = (_ref2 = (_ref3 = mapXY.get(d.source.id)) != null ? _ref3.x : void 0) != null ? _ref2 : d.source.x;
         dx = d.target.x - d.source.x;
-        d.target.y = (_ref4 = (_ref5 = fromXY.get(d.target.id)) != null ? _ref5.y : void 0) != null ? _ref4 : d.target.y;
-        d.source.y = (_ref6 = (_ref7 = fromXY.get(d.source.id)) != null ? _ref7.y : void 0) != null ? _ref6 : d.source.y;
+        d.target.y = (_ref4 = (_ref5 = mapXY.get(d.target.id)) != null ? _ref5.y : void 0) != null ? _ref4 : d.target.y;
+        d.source.y = (_ref6 = (_ref7 = mapXY.get(d.source.id)) != null ? _ref7.y : void 0) != null ? _ref6 : d.source.y;
         dy = d.target.y - d.source.y;
         dr = Math.sqrt(dx * dx + dy * dy);
         return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
       });
-      fromXY = null;
-      return this.toXY = null;
+    };
+
+    MabogoGraph.prototype._setFromXY = function(fromXY, node) {
+      var val;
+
+      val = this.fromXY.has(node.id) || {
+        x: node.x,
+        y: node.y
+      };
+      return fromXY.set(node.id, val);
     };
 
     MabogoGraph.prototype._showDetails = function(context, obj, d) {
