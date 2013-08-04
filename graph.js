@@ -13,7 +13,7 @@
       "x": 0,
       "y": 0
     };
-    start = -120;
+    start = 0;
     current = start;
     radialLocation = function(center, angle, radius) {
       var x, y;
@@ -179,9 +179,13 @@
       this.node = this.nodeG.selectAll("circle.node").data(this.force.nodes());
       this.node.enter().append("svg:circle").attr("class", "node").attr("r", function(d) {
         return d.radius;
+      }).attr("x", function(d) {
+        return d.x;
+      }).attr("y", function(d) {
+        return d.y;
       }).style("fill", function(d) {
         return _this.colorScale(d.type);
-      }).call(this.force.drag).on("mouseover", function(d, i) {
+      }).on("mouseover", function(d, i) {
         return context._showDetails(context, this, d);
       }).on("mouseout", function(d, i) {
         return context._hideDetails(context, this, d);
@@ -194,55 +198,120 @@
     };
 
     MabogoGraph.prototype._showcaseSubnetwork = function(d) {
-      var nodesMap, radialMap,
+      if (this.toXY == null) {
+        return this._expandNodes(d);
+      } else {
+        if (d.id === this.centerNode.id) {
+          return this._restoreNodes(this.fromXY);
+        } else {
+          return this._expandNodes(d);
+        }
+      }
+    };
+
+    MabogoGraph.prototype._setFromXY = function(node) {
+      console.log(this.fromXY != null);
+      if (this.fromXY == null) {
+        this.fromXY = d3.map();
+        this.fromXY.set(node.id, {
+          x: node.x,
+          y: node.y
+        });
+      } else {
+        if (!this.fromXY.has(node.id)) {
+          this.fromXY.set(node.id, {
+            x: node.x,
+            y: node.y
+          });
+        }
+      }
+      return console.log(this.fromXY);
+    };
+
+    MabogoGraph.prototype._setToXY = function(node, xy) {
+      console.log(this.toXY != null);
+      if (this.toXY == null) {
+        this.toXY = d3.map();
+      }
+      this.toXY.set(node.id, xy);
+      return console.log(this.toXY);
+    };
+
+    MabogoGraph.prototype._expandNodes = function(center) {
+      var radialMap, showcasedNodes,
         _this = this;
 
-      this.showcase = {
-        nodes: [],
-        links: [],
-        centerNode: null
-      };
-      this.force.nodes().forEach(function(node) {
-        var center, _ref, _ref1;
-
-        if (d.id === node.id) {
-          center = node;
-          _ref = [center.x, center.y], center.prev_x = _ref[0], center.prev_y = _ref[1];
-          _ref1 = [_this.graphWidth / 2, _this.graphHeight / 2], center.x = _ref1[0], center.y = _ref1[1];
-          return _this.showcase.centerNode = center;
-        }
+      showcasedNodes = [];
+      this.centerNode = center;
+      this._setFromXY(center);
+      this._setToXY(center, {
+        x: this.graphWidth / 2,
+        y: this.graphHeight / 2
       });
       this.force.links().forEach(function(link) {
-        var node, _ref, _ref1;
+        var node, _ref;
 
-        if ((_ref = d.id) === link.source.id || _ref === link.target.id) {
-          _this.showcase.links.push(link);
-          node = d.id === link.source.id ? link.target : link.source;
-          _ref1 = [node.x, node.y], node.prev_x = _ref1[0], node.prev_y = _ref1[1];
-          return _this.showcase.nodes.push(node);
+        if ((_ref = center.id) === link.source.id || _ref === link.target.id) {
+          node = center.id === link.source.id ? link.target : link.source;
+          _this._setFromXY(node);
+          return showcasedNodes.push(node);
         }
       });
-      radialMap = RadialPlacement().center({
-        "x": this.showcase.centerNode.x,
-        "y": this.showcase.centerNode.y
-      }).keys(this.showcase.nodes.map(function(node) {
+      radialMap = RadialPlacement().center(this.toXY.get(center.id)).keys(showcasedNodes.map(function(node) {
         return node.id;
       }));
-      this.showcase.nodes.forEach(function(node) {
-        var _ref;
-
-        return _ref = [radialMap(node.id).x, radialMap(node.id).y], node.x = _ref[0], node.y = _ref[1], _ref;
+      showcasedNodes.forEach(function(node) {
+        return this._setToXY(node, radialMap(node.id));
       });
-      nodesMap = this._mapNodes(this.showcase.nodes);
-      nodesMap.set(this.showcase.centerNode.id, this.showcase.centerNode);
-      this.showcase.links.forEach(function(link) {
-        var _ref;
+      [this.node, this.text].forEach(function(selector) {
+        return selector.transition().attr("transform", function(d) {
+          var _ref, _ref1, _ref2, _ref3;
 
-        return _ref = [link.source.id, link.target.id].map(function(l) {
-          return nodesMap.get(l);
-        }), link.source = _ref[0], link.target = _ref[1], _ref;
+          d.x = (_ref = (_ref1 = _this.toXY.get(d.id)) != null ? _ref1.x : void 0) != null ? _ref : d.x;
+          d.y = (_ref2 = (_ref3 = _this.toXY.get(d.id)) != null ? _ref3.y : void 0) != null ? _ref2 : d.y;
+          return "translate(" + d.x + "," + d.y + ")";
+        });
       });
-      return console.log(this.showcase);
+      return this.path.transition().attr("d", function(d) {
+        var dr, dx, dy, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
+
+        d.target.x = (_ref = (_ref1 = _this.toXY.get(d.target.id)) != null ? _ref1.x : void 0) != null ? _ref : d.target.x;
+        d.source.x = (_ref2 = (_ref3 = _this.toXY.get(d.source.id)) != null ? _ref3.x : void 0) != null ? _ref2 : d.source.x;
+        dx = d.target.x - d.source.x;
+        d.target.y = (_ref4 = (_ref5 = _this.toXY.get(d.target.id)) != null ? _ref5.y : void 0) != null ? _ref4 : d.target.y;
+        d.source.y = (_ref6 = (_ref7 = _this.toXY.get(d.source.id)) != null ? _ref7.y : void 0) != null ? _ref6 : d.source.y;
+        dy = d.target.y - d.source.y;
+        dr = Math.sqrt(dx * dx + dy * dy);
+        return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+      });
+    };
+
+    MabogoGraph.prototype._restoreNodes = function(fromXY) {
+      var _this = this;
+
+      [this.node, this.text].forEach(function(selector) {
+        return selector.transition().attr("transform", function(d) {
+          var _ref, _ref1, _ref2, _ref3;
+
+          d.x = (_ref = (_ref1 = fromXY.get(d.id)) != null ? _ref1.x : void 0) != null ? _ref : d.x;
+          d.y = (_ref2 = (_ref3 = fromXY.get(d.id)) != null ? _ref3.y : void 0) != null ? _ref2 : d.y;
+          return "translate(" + d.x + "," + d.y + ")";
+        });
+      });
+      this.path.transition().attr("d", function(d) {
+        var dr, dx, dy, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
+
+        d.target.x = (_ref = (_ref1 = fromXY.get(d.target.id)) != null ? _ref1.x : void 0) != null ? _ref : d.target.x;
+        d.source.x = (_ref2 = (_ref3 = fromXY.get(d.source.id)) != null ? _ref3.x : void 0) != null ? _ref2 : d.source.x;
+        dx = d.target.x - d.source.x;
+        d.target.y = (_ref4 = (_ref5 = fromXY.get(d.target.id)) != null ? _ref5.y : void 0) != null ? _ref4 : d.target.y;
+        d.source.y = (_ref6 = (_ref7 = fromXY.get(d.source.id)) != null ? _ref7.y : void 0) != null ? _ref6 : d.source.y;
+        dy = d.target.y - d.source.y;
+        dr = Math.sqrt(dx * dx + dy * dy);
+        return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+      });
+      fromXY = null;
+      return this.toXY = null;
     };
 
     MabogoGraph.prototype._showDetails = function(context, obj, d) {

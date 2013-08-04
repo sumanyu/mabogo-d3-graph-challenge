@@ -9,7 +9,7 @@ RadialPlacement = () ->
   # where the center of the layout should be
   center = {"x":0, "y":0}
   # what angle to start at
-  start = -120
+  start = 0
   current = start
 
   # Given an center point, angle, and radius length,
@@ -202,54 +202,118 @@ class MabogoGraph
     @node.enter().append("svg:circle")
       .attr("class", "node")
       .attr("r", (d)-> d.radius)
+      .attr("x", (d) -> d.x)
+      .attr("y", (d) -> d.y)
       .style("fill", (d) => @colorScale(d.type))
-      .call(@force.drag)
       .on("mouseover", (d, i) -> context._showDetails(context, @, d))
       .on("mouseout", (d, i) -> context._hideDetails(context, @, d))
       .on("click", (d, i) => @_showcaseSubnetwork(d) if @frozen)
 
     @node.exit().remove()
 
+  # Where the magic happens
   _showcaseSubnetwork: (d) ->
-    # Gather 1 degree separated nodes and links
-    @showcase = 
-      nodes: []
-      links: []
-      centerNode: null
+    # Overview mode?
+    unless @toXY?
+      @_expandNodes(d)
+    else
+      if d.id is @centerNode.id
+        @_restoreNodes(@fromXY)
+      else
+        @_expandNodes(d)
 
-    # Set centerNode to the clicked item
-    @force.nodes().forEach (node) =>
-      if d.id is node.id
-        center = node
-        [center.prev_x, center.prev_y] = [center.x, center.y]
-        [center.x, center.y] = [@graphWidth/2, @graphHeight/2]
+  _setFromXY: (node) ->
+    console.log @fromXY?
+    unless @fromXY? 
+      @fromXY = d3.map()
+      @fromXY.set(node.id, {x: node.x, y: node.y})
+    else
+      @fromXY.set(node.id, {x: node.x, y: node.y}) unless @fromXY.has(node.id)
+    console.log @fromXY
 
-        @showcase.centerNode = center
+  _setToXY: (node, xy) ->
+    console.log @toXY?
+    unless @toXY?
+      @toXY = d3.map()
 
-    # Add all associated 1 degree nodes to showcase nodes
+    @toXY.set(node.id, xy)
+    console.log @toXY
+
+  _expandNodes: (center) ->
+
+    showcasedNodes = []
+    @centerNode = center
+
+    # Set centerNode
+    @_setFromXY(center)
+    @_setToXY(center, {x: @graphWidth/2, y: @graphHeight/2})
+
+    # Add all associated 1 degree nodes
     @force.links().forEach (link) =>
-      if d.id in [link.source.id, link.target.id]
+      if center.id in [link.source.id, link.target.id]
 
-        @showcase.links.push link
+        # @showcase.links.push link
 
-        node = if d.id is link.source.id then link.target else link.source
-        [node.prev_x, node.prev_y] = [node.x, node.y]
-        @showcase.nodes.push node
+        node = if center.id is link.source.id then link.target else link.source
+        @_setFromXY(node)
+        showcasedNodes.push node
 
-    radialMap = RadialPlacement().center({"x":@showcase.centerNode.x,"y":@showcase.centerNode.y})
-                  .keys(@showcase.nodes.map (node) -> node.id)
+    # Set polar x, y for each node
+    radialMap = RadialPlacement()
+                  .center(@toXY.get(center.id))
+                  .keys(showcasedNodes.map (node) -> node.id)
 
-    @showcase.nodes.forEach (node) ->
-      [node.x, node.y] = [radialMap(node.id).x, radialMap(node.id).y]
+    showcasedNodes.forEach (node) ->
+      @_setToXY(node, radialMap(node.id))
 
-    # Update links' source and target now that radial x,y are set for all showcase nodes
-    nodesMap = @_mapNodes(@showcase.nodes)
-    nodesMap.set(@showcase.centerNode.id, @showcase.centerNode)
+    # Translate nodes, text and path
+    [@node, @text].forEach (selector) =>
+      selector.transition()
+      .attr("transform", (d) => 
+          d.x = @toXY.get(d.id)?.x ? d.x
+          d.y = @toXY.get(d.id)?.y ? d.y
+          "translate(" + d.x + "," + d.y + ")" )
 
-    @showcase.links.forEach (link) ->
-      [link.source, link.target] = [link.source.id, link.target.id].map (l) -> nodesMap.get(l)
+    @path.transition()
+      .attr("d", (d) =>
+          d.target.x = @toXY.get(d.target.id)?.x ? d.target.x
+          d.source.x = @toXY.get(d.source.id)?.x ? d.source.x
+          dx = d.target.x - d.source.x
 
-    console.log @showcase
+          d.target.y = @toXY.get(d.target.id)?.y ? d.target.y
+          d.source.y = @toXY.get(d.source.id)?.y ? d.source.y
+          dy = d.target.y - d.source.y
+
+          dr = Math.sqrt(dx * dx + dy * dy)
+          "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
+      )
+
+  _restoreNodes: (fromXY) ->
+    # Restore nodes, text and path to base x,y
+    [@node, @text].forEach (selector) =>
+      selector.transition()
+        .attr("transform", (d) => 
+          d.x = fromXY.get(d.id)?.x ? d.x
+          d.y = fromXY.get(d.id)?.y ? d.y
+          "translate(" + d.x + "," + d.y + ")" 
+        )
+        
+    @path.transition()
+      .attr("d", (d) =>
+          d.target.x = fromXY.get(d.target.id)?.x ? d.target.x
+          d.source.x = fromXY.get(d.source.id)?.x ? d.source.x
+          dx = d.target.x - d.source.x
+
+          d.target.y = fromXY.get(d.target.id)?.y ? d.target.y
+          d.source.y = fromXY.get(d.source.id)?.y ? d.source.y
+          dy = d.target.y - d.source.y
+
+          dr = Math.sqrt(dx * dx + dy * dy)
+          "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
+      )
+
+    fromXY = null
+    @toXY = null
 
   _showDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) -> 
