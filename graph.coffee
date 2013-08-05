@@ -78,7 +78,7 @@ RadialPlacement = () ->
 
 class Utility
   # Returns a map of A - B
-  differenceOfMapAB: (A, B) ->
+  mapAMinusB: (A, B) ->
     retMap = d3.map()
     A.keys().forEach (key) ->
       retMap.set(key, A.get(key)) unless B.has(key)
@@ -98,6 +98,11 @@ class MabogoGraphConstants
 
     @HIDDEN_NODE_OPACITY = 0.05
 
+    # size of the drawing area inside the svg's to make
+    # the bar charts
+    @GRAPH_WIDTH = 800
+    @GRAPH_HEIGHT = 600
+
 class MabogoGraph
   constructor: (@body, data) ->
     # Input validations, event hooks, etc.
@@ -113,17 +118,12 @@ class MabogoGraph
 
     @Utility = new Utility()
     @Constants = new MabogoGraphConstants()
-
-    # size of the drawing area inside the svg's to make
-    # the bar charts
-    @graphWidth = 800
-    @graphHeight = 600
         
     # colors 
     @colorScale = d3.scale.category20();
 
     @force = d3.layout.force()
-              .size([@graphWidth, @graphHeight])
+              .size([@Constants.GRAPH_WIDTH, @Constants.GRAPH_HEIGHT])
               .linkDistance(110) # Higher # -> higher link distance
               .charge(-600) # Lower -> higher network distance 
 
@@ -153,8 +153,8 @@ class MabogoGraph
     nodes.forEach (node) ->
       # Size radius according to the # of links
       node.radius = circleRadius(node.links)
-      node.x = Math.random()*@graphWidth
-      node.y = Math.random()*@graphHeight
+      node.x = Math.random()*@Constants.GRAPH_WIDTH
+      node.y = Math.random()*@Constants.GRAPH_HEIGHT
 
     # map of id -> node
     nodesMap = @Utility.mapNodes(nodes)
@@ -168,8 +168,8 @@ class MabogoGraph
 
   _drawChart: ->
     @svg
-      .attr('width', @graphWidth)
-      .attr("height", @graphHeight)
+      .attr('width', @Constants.GRAPH_WIDTH)
+      .attr("height", @Constants.GRAPH_HEIGHT)
 
     # Figure out markers later
     # @_addMarkers()
@@ -235,6 +235,7 @@ class MabogoGraph
 
     # Restore all if old center node is clicked
     if center.id is @centerNode?.id
+      @showcasing = false
       @_translateGraph(@fromXY)
       @fromXY = d3.map()
       @centerNode = null
@@ -250,7 +251,7 @@ class MabogoGraph
 
       # Set centerNode
       @_setFromXY(fromXY, center)
-      toXY.set(center.id, {x: @graphWidth/2, y: @graphHeight/2})
+      toXY.set(center.id, {x: @Constants.GRAPH_WIDTH/2, y: @Constants.GRAPH_HEIGHT/2})
 
       # Add all associated 1 degree nodes
       @force.links().forEach (link) =>
@@ -269,7 +270,7 @@ class MabogoGraph
 
       # All nodes that exist in @fromXY but not in fromXY
       # These nodes will be restored to original XY
-      restoreXY = @Utility.differenceOfMapAB(@fromXY, fromXY)
+      restoreXY = @Utility.mapAMinusB(@fromXY, fromXY)
 
       # Translate new nodes, old nodes
       [toXY, restoreXY].forEach (argMap) =>    
@@ -321,17 +322,12 @@ class MabogoGraph
         @Constants.HIDDEN_LINK_OPACITY
 
   _restoreOpacity: ->
-    console.log "Restoring opacity"
-    [@node, @text].forEach (selector) =>
-      selector.attr("opacity", 1.0)
-
+    [@node, @text].forEach (selector) => selector.attr("opacity", 1.0)
     @path.attr("stroke-opacity", @Constants.NORMAL_LINK_OPACITY)
 
   # Translate nodes, text and path
   _translateGraph: (mapXY) ->
-    [@node, @text].forEach (selector) =>
-      @_translateXY(selector.transition(), mapXY)
-
+    [@node, @text].forEach (selector) => @_translateXY(selector.transition(), mapXY)
     @_translatePath(@path.transition())
 
   _setFromXY: (fromXY, node) ->
@@ -370,9 +366,8 @@ class MabogoGraph
 
   _updateTick: =>
     unless @showcasing
-      @_translatePath(@path)
-
       [@node, @text].forEach (selection) => @_translateXY(selection)
+      @_translatePath(@path)
 
   _translateXY: (selection, mapXY=null) =>
     selection.attr("transform", (d) -> 

@@ -88,7 +88,7 @@
   Utility = (function() {
     function Utility() {}
 
-    Utility.prototype.differenceOfMapAB = function(A, B) {
+    Utility.prototype.mapAMinusB = function(A, B) {
       var retMap;
 
       retMap = d3.map();
@@ -119,6 +119,8 @@
       this.NORMAL_LINK_OPACITY = 0.5;
       this.HIDDEN_LINK_OPACITY = 0.0;
       this.HIDDEN_NODE_OPACITY = 0.05;
+      this.GRAPH_WIDTH = 800;
+      this.GRAPH_HEIGHT = 600;
     }
 
     return MabogoGraphConstants;
@@ -142,10 +144,8 @@
     MabogoGraph.prototype._setup = function() {
       this.Utility = new Utility();
       this.Constants = new MabogoGraphConstants();
-      this.graphWidth = 800;
-      this.graphHeight = 600;
       this.colorScale = d3.scale.category20();
-      this.force = d3.layout.force().size([this.graphWidth, this.graphHeight]).linkDistance(110).charge(-600);
+      this.force = d3.layout.force().size([this.Constants.GRAPH_WIDTH, this.Constants.GRAPH_HEIGHT]).linkDistance(110).charge(-600);
       this.frozen = false;
       this.fromXY = d3.map();
       return this.showcasing = false;
@@ -160,8 +160,8 @@
       circleRadius = d3.scale.sqrt().range([6, 16]).domain(countExtent);
       nodes.forEach(function(node) {
         node.radius = circleRadius(node.links);
-        node.x = Math.random() * this.graphWidth;
-        return node.y = Math.random() * this.graphHeight;
+        node.x = Math.random() * this.Constants.GRAPH_WIDTH;
+        return node.y = Math.random() * this.Constants.GRAPH_HEIGHT;
       });
       nodesMap = this.Utility.mapNodes(nodes);
       links.forEach(function(link) {
@@ -178,7 +178,7 @@
       var _ref,
         _this = this;
 
-      this.svg.attr('width', this.graphWidth).attr("height", this.graphHeight);
+      this.svg.attr('width', this.Constants.GRAPH_WIDTH).attr("height", this.Constants.GRAPH_HEIGHT);
       _ref = ['pathG', 'nodeG', 'textG'].map(function(c) {
         return _this.svg.append("svg:g").attr("class", c);
       }), this.pathG = _ref[0], this.nodeG = _ref[1], this.textG = _ref[2];
@@ -235,6 +235,7 @@
         _this = this;
 
       if (center.id === ((_ref = this.centerNode) != null ? _ref.id : void 0)) {
+        this.showcasing = false;
         this._translateGraph(this.fromXY);
         this.fromXY = d3.map();
         this.centerNode = null;
@@ -248,8 +249,8 @@
         fromXY = d3.map();
         this._setFromXY(fromXY, center);
         toXY.set(center.id, {
-          x: this.graphWidth / 2,
-          y: this.graphHeight / 2
+          x: this.Constants.GRAPH_WIDTH / 2,
+          y: this.Constants.GRAPH_HEIGHT / 2
         });
         this.force.links().forEach(function(link) {
           var node, _ref1;
@@ -266,7 +267,7 @@
         this.showcasedNodes.forEach(function(node) {
           return toXY.set(node.id, radialMap(node.id));
         });
-        restoreXY = this.Utility.differenceOfMapAB(this.fromXY, fromXY);
+        restoreXY = this.Utility.mapAMinusB(this.fromXY, fromXY);
         [toXY, restoreXY].forEach(function(argMap) {
           return _this._translateGraph(argMap);
         });
@@ -354,7 +355,6 @@
     MabogoGraph.prototype._restoreOpacity = function() {
       var _this = this;
 
-      console.log("Restoring opacity");
       [this.node, this.text].forEach(function(selector) {
         return selector.attr("opacity", 1.0);
       });
@@ -423,10 +423,10 @@
       var _this = this;
 
       if (!this.showcasing) {
-        this._translatePath(this.path);
-        return [this.node, this.text].forEach(function(selection) {
+        [this.node, this.text].forEach(function(selection) {
           return _this._translateXY(selection);
         });
+        return this._translatePath(this.path);
       }
     };
 
