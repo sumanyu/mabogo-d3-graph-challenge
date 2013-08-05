@@ -152,7 +152,8 @@
     };
 
     MabogoGraph.prototype._updateData = function(nodes, links) {
-      var circleRadius, countExtent, nodesMap;
+      var circleRadius, countExtent, nodesMap,
+        _this = this;
 
       countExtent = d3.extent(nodes, function(d) {
         return d.links;
@@ -160,8 +161,8 @@
       circleRadius = d3.scale.sqrt().range([6, 16]).domain(countExtent);
       nodes.forEach(function(node) {
         node.radius = circleRadius(node.links);
-        node.x = Math.random() * this.Constants.GRAPH_WIDTH;
-        return node.y = Math.random() * this.Constants.GRAPH_HEIGHT;
+        node.x = Math.random() * _this.Constants.GRAPH_WIDTH;
+        return node.y = Math.random() * _this.Constants.GRAPH_HEIGHT;
       });
       nodesMap = this.Utility.mapNodes(nodes);
       links.forEach(function(link) {

@@ -150,7 +150,7 @@ class MabogoGraph
     countExtent = d3.extent(nodes, (d) -> d.links)
     circleRadius = d3.scale.sqrt().range([6, 16]).domain(countExtent)
 
-    nodes.forEach (node) ->
+    nodes.forEach (node) =>
       # Size radius according to the # of links
       node.radius = circleRadius(node.links)
       node.x = Math.random()*@Constants.GRAPH_WIDTH
