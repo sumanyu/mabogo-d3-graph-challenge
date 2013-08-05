@@ -112,6 +112,8 @@ class MabogoGraph
     # Keep track of node's base XY positions
     @fromXY = d3.map()
 
+    @showcasing = false
+
   # Nodes expect the following fields
   # Randomly assigned values if not supplied
     # index - the zero-based index of the node within the nodes array.
@@ -172,9 +174,10 @@ class MabogoGraph
 
   # Adds arrow tips
   _addMarkers: ->
-    @svg.append("svg:defs").selectAll("marker")
+    @markers = @svg.append("svg:defs").selectAll("marker")
         .data(["friend", "acquaintance"])
-      .enter().append("svg:marker")    
+
+    @markers.enter().append("svg:marker")    
         .attr("id", String)
         .attr("viewBox", "0 -5 10 10")
         .attr("refX", 15)
@@ -208,9 +211,9 @@ class MabogoGraph
       .attr("x", (d) -> d.x)
       .attr("y", (d) -> d.y)
       .style("fill", (d) => @colorScale(d.type))
-      .on("mouseover", (d, i) -> context._showDetails(context, @, d))
-      .on("mouseout", (d, i) -> context._hideDetails(context, @, d))
-      .on("click", (d, i) => @_showcaseSubnetwork(d) if @frozen)
+      .on("click", (d, i) => @_showcaseSubnetwork(d) if @frozen )
+
+    @_addOnHover()
 
     @node.exit().remove()
 
@@ -227,11 +230,14 @@ class MabogoGraph
 
     # Restore all if old center node is clicked
     if center.id is @centerNode?.id
-      @_updateGraph(@fromXY)
+      @_translateGraph(@fromXY)
       @fromXY = d3.map()
       @centerNode = null
+      @_restoreOpacity()
+      @_addOnHover()
     else
-      showcasedNodes = []
+      @showcasing = true
+      @showcasedNodes = []
       @centerNode = center
 
       toXY = d3.map()
@@ -246,31 +252,74 @@ class MabogoGraph
         if center.id in [link.source.id, link.target.id]
           node = if center.id is link.source.id then link.target else link.source
           @_setFromXY(fromXY, node)
-          showcasedNodes.push node
+          @showcasedNodes.push node
 
       # Set polar x, y for each node
       radialMap = RadialPlacement()
                     .center(toXY.get(center.id))
-                    .keys(showcasedNodes.map (node) -> node.id)
+                    .keys(@showcasedNodes.map (node) -> node.id)
 
-      showcasedNodes.forEach (node) ->
+      @showcasedNodes.forEach (node) ->
         toXY.set(node.id, radialMap(node.id))
 
       # All nodes that exist in @fromXY but not in fromXY
       # These nodes will be restored to original XY
       restoreXY = @_differenceOfMapAB(@fromXY, fromXY)
 
-      console.log toXY, fromXY, restoreXY
-
       # Translate new nodes
-      @_updateGraph(toXY)
+      @_translateGraph(toXY)
 
       # Restore old nodes
-      @_updateGraph(restoreXY)
+      @_translateGraph(restoreXY)
+
+      # Change node, text, path's opacity
+      @_highlightShowcased(toXY)
+      @_removeOnHover()
 
       @fromXY = fromXY
 
-  _updateGraph: (mapXY) ->
+  _addOnHover: ->
+    context = @
+    @node
+      .on("mouseover", (d, i) -> context._showDetails(context, @, d))
+      .on("mouseout", (d, i) -> context._hideDetails(context, @, d))
+
+  _removeOnHover: ->
+    context = @
+    @node
+      .on("mouseover", (d, i) -> 
+        if d in context.showcasedNodes then context._showPreviewDetails(context, @, d) else null)
+      .on("mouseout", (d, i) -> 
+        if d in context.showcasedNodes then context._hidePreviewDetails(context, @, d) else null)
+
+  _showPreviewDetails: (context, obj, d) ->
+    context.path.attr("stroke-opacity", (l) ->
+      cond1 = l.source is d and l.target is context.centerNode
+      cond2 = l.source is context.centerNode and l.target is d
+
+      if cond1 or cond2 then 1.0 else d3.select(@).attr("stroke-opacity"))
+
+  _hidePreviewDetails: (context, obj, d) ->
+    context.path.attr("stroke-opacity", (l) ->
+      console.log parseFloat(d3.select(@).attr("stroke-opacity")) is 1.0
+      if parseFloat(d3.select(@).attr("stroke-opacity")) is 1.0 then 0.5 else d3.select(@).attr("stroke-opacity"))
+
+  _highlightShowcased: (toXY) ->
+    [@node, @text].forEach (selector) =>
+      selector.attr("opacity", (d) => 
+        if toXY.has(d.id) or d is @centerNode then 1.0 else 0.05)
+
+    @path.attr("stroke-opacity", (l) => 
+      if l.source == @centerNode or l.target == @centerNode then .50 else 0.0)
+
+  _restoreOpacity: ->
+    console.log "Restoring opacity"
+    [@node, @text].forEach (selector) =>
+      selector.attr("opacity", 1.0)
+
+    @path.attr("stroke-opacity", 0.5)
+
+  _translateGraph: (mapXY) ->
     # Translate nodes, text and path
     [@node, @text].forEach (selector) =>
       selector.transition()
@@ -281,24 +330,18 @@ class MabogoGraph
 
     @path.transition()
       .attr("d", (d) =>
-          d.target.x = mapXY.get(d.target.id)?.x ? d.target.x
-          d.source.x = mapXY.get(d.source.id)?.x ? d.source.x
           dx = d.target.x - d.source.x
-
-          d.target.y = mapXY.get(d.target.id)?.y ? d.target.y
-          d.source.y = mapXY.get(d.source.id)?.y ? d.source.y
           dy = d.target.y - d.source.y
 
           dr = Math.sqrt(dx * dx + dy * dy)
-          "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
-      )
+          "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}" )
 
   _setFromXY: (fromXY, node) ->
-    val = @fromXY.has(node.id) || {x: node.x, y: node.y}
+    val = @fromXY.get(node.id) ? {x: node.x, y: node.y}
     fromXY.set( node.id, val )
 
   _showDetails: (context, obj, d) ->
-    context.path.attr("stroke-opacity", (l) -> 
+    context.path.attr("stroke-opacity", (l) ->
       if l.source == d or l.target == d then 1.0 else 0.5)
 
     d3.select(obj).style("fill", "#ddd")
@@ -333,14 +376,16 @@ class MabogoGraph
       @frozen = true
 
   _updateTick: =>
-    @path.attr("d", (d) ->
-      do (dx = d.target.x - d.source.x, dy = d.target.y - d.source.y) =>
+    unless @showcasing
+      @path.attr("d", (d) ->
+        dx = d.target.x - d.source.x
+        dy = d.target.y - d.source.y
         dr = Math.sqrt(dx * dx + dy * dy)
         "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
-    )
+      )
 
-    @node.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")") 
-    @text.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")")
+      @node.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")") 
+      @text.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")")
 
 $ ->
   $("#mobogo-graph-container").each ->
