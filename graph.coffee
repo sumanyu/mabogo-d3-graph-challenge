@@ -271,11 +271,9 @@ class MabogoGraph
       # These nodes will be restored to original XY
       restoreXY = @Utility.differenceOfMapAB(@fromXY, fromXY)
 
-      # Translate new nodes
-      @_translateGraph(toXY)
-
-      # Restore old nodes
-      @_translateGraph(restoreXY)
+      # Translate new nodes, old nodes
+      [toXY, restoreXY].forEach (argMap) =>    
+        @_translateGraph(argMap)
 
       # Change node, text, path's opacity
       @_highlightShowcased(toXY)
@@ -329,14 +327,10 @@ class MabogoGraph
 
     @path.attr("stroke-opacity", @Constants.NORMAL_LINK_OPACITY)
 
+  # Translate nodes, text and path
   _translateGraph: (mapXY) ->
-    # Translate nodes, text and path
     [@node, @text].forEach (selector) =>
-      selector.transition()
-      .attr("transform", (d) => 
-          d.x = mapXY.get(d.id)?.x ? d.x
-          d.y = mapXY.get(d.id)?.y ? d.y
-          "translate(" + d.x + "," + d.y + ")" )
+      @_translateXY(selector.transition(), mapXY)
 
     @_translatePath(@path.transition())
 
@@ -377,8 +371,14 @@ class MabogoGraph
   _updateTick: =>
     unless @showcasing
       @_translatePath(@path)
-      @node.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")") 
-      @text.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")")
+
+      [@node, @text].forEach (selection) => @_translateXY(selection)
+
+  _translateXY: (selection, mapXY=null) =>
+    selection.attr("transform", (d) -> 
+      d.x = mapXY?.get(d.id)?.x ? d.x
+      d.y = mapXY?.get(d.id)?.y ? d.y
+      "translate(" + d.x + "," + d.y + ")") 
 
   _translatePath: (path) =>
     path.attr("d", (d) ->

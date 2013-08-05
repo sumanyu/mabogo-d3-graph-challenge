@@ -129,6 +129,7 @@
     function MabogoGraph(body, data) {
       this.body = body;
       this._translatePath = __bind(this._translatePath, this);
+      this._translateXY = __bind(this._translateXY, this);
       this._updateTick = __bind(this._updateTick, this);
       this._freezeNodes = __bind(this._freezeNodes, this);
       this.vis = this.body.find("svg#mobogo-graph");
@@ -266,8 +267,9 @@
           return toXY.set(node.id, radialMap(node.id));
         });
         restoreXY = this.Utility.differenceOfMapAB(this.fromXY, fromXY);
-        this._translateGraph(toXY);
-        this._translateGraph(restoreXY);
+        [toXY, restoreXY].forEach(function(argMap) {
+          return _this._translateGraph(argMap);
+        });
         this._highlightShowcased(toXY);
         this._removeOnHover();
         return this.fromXY = fromXY;
@@ -363,13 +365,7 @@
       var _this = this;
 
       [this.node, this.text].forEach(function(selector) {
-        return selector.transition().attr("transform", function(d) {
-          var _ref, _ref1, _ref2, _ref3;
-
-          d.x = (_ref = (_ref1 = mapXY.get(d.id)) != null ? _ref1.x : void 0) != null ? _ref : d.x;
-          d.y = (_ref2 = (_ref3 = mapXY.get(d.id)) != null ? _ref3.y : void 0) != null ? _ref2 : d.y;
-          return "translate(" + d.x + "," + d.y + ")";
-        });
+        return _this._translateXY(selector.transition(), mapXY);
       });
       return this._translatePath(this.path.transition());
     };
@@ -424,15 +420,27 @@
     };
 
     MabogoGraph.prototype._updateTick = function() {
+      var _this = this;
+
       if (!this.showcasing) {
         this._translatePath(this.path);
-        this.node.attr("transform", function(d) {
-          return "translate(" + d.x + "," + d.y + ")";
-        });
-        return this.text.attr("transform", function(d) {
-          return "translate(" + d.x + "," + d.y + ")";
+        return [this.node, this.text].forEach(function(selection) {
+          return _this._translateXY(selection);
         });
       }
+    };
+
+    MabogoGraph.prototype._translateXY = function(selection, mapXY) {
+      if (mapXY == null) {
+        mapXY = null;
+      }
+      return selection.attr("transform", function(d) {
+        var _ref, _ref1, _ref2, _ref3;
+
+        d.x = (_ref = mapXY != null ? (_ref1 = mapXY.get(d.id)) != null ? _ref1.x : void 0 : void 0) != null ? _ref : d.x;
+        d.y = (_ref2 = mapXY != null ? (_ref3 = mapXY.get(d.id)) != null ? _ref3.y : void 0 : void 0) != null ? _ref2 : d.y;
+        return "translate(" + d.x + "," + d.y + ")";
+      });
     };
 
     MabogoGraph.prototype._translatePath = function(path) {
