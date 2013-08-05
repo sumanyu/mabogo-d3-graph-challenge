@@ -76,6 +76,28 @@ RadialPlacement = () ->
 
   return placement
 
+class Utility
+  # Returns a map of A - B
+  differenceOfMapAB: (A, B) ->
+    retMap = d3.map()
+    A.keys().forEach (key) ->
+      retMap.set(key, A.get(key)) unless B.has(key)
+
+    retMap
+
+  # Maps node.id -> node
+  mapNodes: (nodes) ->
+    nodesMap = d3.map()
+    nodes.forEach (node) -> nodesMap.set(node.id, node)
+    nodesMap
+
+class MabogoGraphConstants
+  constructor: ->
+    @NORMAL_LINK_OPACITY = 0.5
+    @HIDDEN_LINK_OPACITY = 0.0
+
+    @HIDDEN_NODE_OPACITY = 0.05
+
 class MabogoGraph
   constructor: (@body, data) ->
     # Input validations, event hooks, etc.
@@ -88,6 +110,10 @@ class MabogoGraph
     @_drawChart()
 
   _setup: ->
+
+    @Utility = new Utility()
+    @Constants = new MabogoGraphConstants()
+
     # size of the drawing area inside the svg's to make
     # the bar charts
     @graphWidth = 800
@@ -100,11 +126,6 @@ class MabogoGraph
               .size([@graphWidth, @graphHeight])
               .linkDistance(110) # Higher # -> higher link distance
               .charge(-600) # Lower -> higher network distance 
-
-    @showcaseForce = d3.layout.force()
-              .size([@graphWidth, @graphHeight])
-              .linkDistance(110) # Higher # -> higher link distance
-              .charge(-600) # Lower -> higher network distance
 
     # Keep track of whether nodes are frozen
     @frozen = false
@@ -136,7 +157,7 @@ class MabogoGraph
       node.y = Math.random()*@graphHeight
 
     # map of id -> node
-    nodesMap = @_mapNodes(nodes)
+    nodesMap = @Utility.mapNodes(nodes)
 
     links.forEach (link) ->
       [link.source, link.target] = [link.source, link.target].map (l) -> nodesMap.get(l)
@@ -145,32 +166,24 @@ class MabogoGraph
       .links(links)
       .on("tick", @_updateTick).start()
 
-  # Maps node.id -> node
-  _mapNodes: (nodes) ->
-    nodesMap = d3.map()
-    nodes.forEach (node) -> nodesMap.set(node.id, node)
-    nodesMap
-
   _drawChart: ->
     @svg
       .attr('width', @graphWidth)
       .attr("height", @graphHeight)
 
-    @_addMarkers()
+    # Figure out markers later
+    # @_addMarkers()
 
     # Draw links before nodes so nodes can sit on top
     [@pathG, @nodeG, @textG] = ['pathG', 'nodeG', 'textG'].map (c) => 
                                 @svg.append("svg:g")
                                   .attr("class", c)
 
-    @_updateChart()
-
-    window.setTimeout(@_freezeNodes, 4000)
-
-  _updateChart: ->
     @_updateLinks()
     @_updateNodes()
     @_updateText()
+
+    window.setTimeout(@_freezeNodes, 4000)
 
   # Adds arrow tips
   _addMarkers: ->
@@ -195,7 +208,7 @@ class MabogoGraph
 
     @path.enter().append("svg:path")
       .attr("class", (d) -> "link #{d.type}")
-      .attr("stroke-opacity", 0.5)
+      .attr("stroke-opacity", => @Constants.NORMAL_LINK_OPACITY)
       .attr("marker-end", (d) -> "url(##{d.type})")
 
     @path.exit().remove()
@@ -216,14 +229,6 @@ class MabogoGraph
     @_addOnHover()
 
     @node.exit().remove()
-
-  # Returns a map of A - B
-  _differenceOfMapAB: (A, B) ->
-    retMap = d3.map()
-    A.keys().forEach (key) ->
-      retMap.set(key, A.get(key)) unless B.has(key)
-
-    retMap
 
   # Where the magic happens
   _showcaseSubnetwork: (center) ->
@@ -264,7 +269,7 @@ class MabogoGraph
 
       # All nodes that exist in @fromXY but not in fromXY
       # These nodes will be restored to original XY
-      restoreXY = @_differenceOfMapAB(@fromXY, fromXY)
+      restoreXY = @Utility.differenceOfMapAB(@fromXY, fromXY)
 
       # Translate new nodes
       @_translateGraph(toXY)
@@ -301,23 +306,28 @@ class MabogoGraph
 
   _hidePreviewDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) ->
-      console.log parseFloat(d3.select(@).attr("stroke-opacity")) is 1.0
-      if parseFloat(d3.select(@).attr("stroke-opacity")) is 1.0 then 0.5 else d3.select(@).attr("stroke-opacity"))
+      if parseFloat(d3.select(@).attr("stroke-opacity")) is 1.0
+        context.Constants.NORMAL_LINK_OPACITY 
+      else 
+        d3.select(@).attr("stroke-opacity"))
 
   _highlightShowcased: (toXY) ->
     [@node, @text].forEach (selector) =>
       selector.attr("opacity", (d) => 
-        if toXY.has(d.id) or d is @centerNode then 1.0 else 0.05)
+        if toXY.has(d.id) or d is @centerNode then 1.0 else @Constants.HIDDEN_NODE_OPACITY )
 
-    @path.attr("stroke-opacity", (l) => 
-      if l.source == @centerNode or l.target == @centerNode then .50 else 0.0)
+    @path.attr "stroke-opacity", (l) => 
+      if l.source == @centerNode or l.target == @centerNode
+        @Constants.NORMAL_LINK_OPACITY  
+      else 
+        @Constants.HIDDEN_LINK_OPACITY
 
   _restoreOpacity: ->
     console.log "Restoring opacity"
     [@node, @text].forEach (selector) =>
       selector.attr("opacity", 1.0)
 
-    @path.attr("stroke-opacity", 0.5)
+    @path.attr("stroke-opacity", @Constants.NORMAL_LINK_OPACITY)
 
   _translateGraph: (mapXY) ->
     # Translate nodes, text and path
@@ -328,13 +338,7 @@ class MabogoGraph
           d.y = mapXY.get(d.id)?.y ? d.y
           "translate(" + d.x + "," + d.y + ")" )
 
-    @path.transition()
-      .attr("d", (d) =>
-          dx = d.target.x - d.source.x
-          dy = d.target.y - d.source.y
-
-          dr = Math.sqrt(dx * dx + dy * dy)
-          "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}" )
+    @_translatePath(@path.transition())
 
   _setFromXY: (fromXY, node) ->
     val = @fromXY.get(node.id) ? {x: node.x, y: node.y}
@@ -342,12 +346,12 @@ class MabogoGraph
 
   _showDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) ->
-      if l.source == d or l.target == d then 1.0 else 0.5)
+      if l.source == d or l.target == d then 1.0 else context.Constants.NORMAL_LINK_OPACITY )
 
     d3.select(obj).style("fill", "#ddd")
 
   _hideDetails: (context, obj, d) ->
-    context.path.attr("stroke-opacity", 0.5)
+    context.path.attr("stroke-opacity", context.Constants.NORMAL_LINK_OPACITY )
 
     d3.select(obj).style("fill", @colorScale(d.type))
 
@@ -355,18 +359,13 @@ class MabogoGraph
     @text = @textG.selectAll("g")
               .data(@force.nodes())
             
-    g = @text.enter().append("svg:g")
-
-    g.append("svg:text")
-        .attr("x", 8)
-        .attr("y", ".31em")
-        .attr("class", "shadow")
-        .text((d) -> d.name)
-
-    g.append("svg:text")
-        .attr("x", 8)
-        .attr("y", ".31em")
-        .text((d) -> d.name)
+    do (g = @text.enter().append("svg:g")) => 
+      ["shadow", "label"].forEach (clss) =>
+        g.append("svg:text")
+            .attr("x", 8)
+            .attr("y", ".31em")
+            .attr("class", clss)
+            .text((d) -> d.name)
 
     @text.exit().remove()
 
@@ -377,15 +376,17 @@ class MabogoGraph
 
   _updateTick: =>
     unless @showcasing
-      @path.attr("d", (d) ->
-        dx = d.target.x - d.source.x
-        dy = d.target.y - d.source.y
-        dr = Math.sqrt(dx * dx + dy * dy)
-        "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
-      )
-
+      @_translatePath(@path)
       @node.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")") 
       @text.attr("transform", (d) -> "translate(" + d.x + "," + d.y + ")")
+
+  _translatePath: (path) =>
+    path.attr("d", (d) ->
+      dx = d.target.x - d.source.x
+      dy = d.target.y - d.source.y
+      dr = Math.sqrt(dx * dx + dy * dy)
+      "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
+    )
 
 $ ->
   $("#mobogo-graph-container").each ->
