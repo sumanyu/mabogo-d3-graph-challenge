@@ -345,7 +345,15 @@
         });
       });
       return this.path.attr("stroke-opacity", function(l) {
-        if (l.source === _this.centerNode || l.target === _this.centerNode) {
+        var cond;
+
+        cond = [];
+        cond.push(l.source === _this.centerNode);
+        cond.push(l.target === _this.centerNode);
+        cond.push(toXY.has(l.source.id) && toXY.has(l.target.id));
+        if (cond.reduce(function(s, t) {
+          return s || t;
+        })) {
           return _this.Constants.NORMAL_LINK_OPACITY;
         } else {
           return _this.Constants.HIDDEN_LINK_OPACITY;

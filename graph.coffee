@@ -167,9 +167,8 @@ class MabogoGraph
       .on("tick", @_updateTick).start()
 
   _drawChart: ->
-    @svg
-      .attr('width', @Constants.GRAPH_WIDTH)
-      .attr("height", @Constants.GRAPH_HEIGHT)
+    @svg.attr('width', @Constants.GRAPH_WIDTH)
+        .attr("height", @Constants.GRAPH_HEIGHT)
 
     # Figure out markers later
     # @_addMarkers()
@@ -236,11 +235,15 @@ class MabogoGraph
     # Restore all if old center node is clicked
     if center.id is @centerNode?.id
       @showcasing = false
+
       @_translateGraph(@fromXY)
+
+      # Reset from xy
       @fromXY = d3.map()
+      
       @centerNode = null
       @_restoreOpacity()
-      @_addOnHover()
+      @_addOnHover()  
     else
       @showcasing = true
       @showcasedNodes = []
@@ -316,7 +319,12 @@ class MabogoGraph
         if toXY.has(d.id) or d is @centerNode then 1.0 else @Constants.HIDDEN_NODE_OPACITY )
 
     @path.attr "stroke-opacity", (l) => 
-      if l.source == @centerNode or l.target == @centerNode
+      cond = []
+      cond.push(l.source is @centerNode)
+      cond.push(l.target is @centerNode)
+      cond.push(toXY.has(l.source.id) and toXY.has(l.target.id))
+
+      if (cond.reduce (s, t) -> s or t)
         @Constants.NORMAL_LINK_OPACITY  
       else 
         @Constants.HIDDEN_LINK_OPACITY
