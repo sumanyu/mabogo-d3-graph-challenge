@@ -3,9 +3,9 @@ RadialPlacement = () ->
   # stores the key -> location values
   values = d3.map()
   # how much to separate each location by
-  increment = 20
+  innerIncrement = 20
   # how large to make the layout
-  radius = 200
+  radius = 150
   # where the center of the layout should be
   center = {"x":0, "y":0}
   # what angle to start at
@@ -32,22 +32,26 @@ RadialPlacement = () ->
   place = (key) ->
     value = radialLocation(center, current, radius)
     values.set(key,value)
-    current += increment
+    current += innerIncrement
     value
 
   # Given a set of keys, set x,y
   # Expects radius, center to be set.
+  # Keys is array of array [[node.id..], [node.id..]]
   setKeys = (keys) ->
     # start with an empty values
     values = d3.map()
 
-    increment = 360 / keys.length
+    innerIncrement = 360 / keys[0].length
 
     # Shallow copy
-    innerKeys = keys.splice(0)
+    innerKeys = keys[0]
 
     # set locations inside circle
     innerKeys.forEach (k) -> place(k)
+
+    # set locations for other circle
+
 
   placement.keys = (_) ->
     if !arguments.length
@@ -205,10 +209,12 @@ class MabogoGraph
     @path = @pathG.selectAll("path.link")
               .data(@force.links())
 
+    console.log @path
+
     @path.enter().append("svg:path")
       .attr("class", (d) -> "link #{d.type}")
       .attr("stroke-opacity", => @Constants.NORMAL_LINK_OPACITY)
-      .attr("marker-end", (d) -> "url(##{d.type})")
+      # .attr("marker-end", (d) -> "url(##{d.type})")
 
     @path.exit().remove()
 
@@ -223,11 +229,41 @@ class MabogoGraph
       .attr("x", (d) -> d.x)
       .attr("y", (d) -> d.y)
       .style("fill", (d) => @colorScale(d.type))
-      .on("click", (d, i) => @_showcaseSubnetwork(d) if @frozen )
+      .on("dblclick", (d, i) => @_showcaseSubnetwork(d) if @frozen )
+      .on("click", (d, i) => @_addLink(d) if @frozen )
 
     @_addOnHover()
 
     @node.exit().remove()
+
+  # Draw's link from one node to another
+  _addLink: (d) =>
+    # Must not be showcasing
+    unless @showcasing
+      unless @onClickFrom? 
+        @onClickFrom = d
+        console.log @onClickFrom
+      else
+        @onClickTo = d
+        console.log @onClickTo, @onClickFrom
+        unless @onClickFrom.id is @onClickTo.id
+          # add edge to data
+          _link =
+            source: @onClickFrom
+            target: @onClickTo
+            type: "friend"
+
+          _linkExists = @force.links().filter((link) => 
+            link.source in [@onClickFrom, @onClickTo] and link.target in [@onClickFrom, @onClickTo]).length > 0
+
+          # Add link only if link doesn't exist
+          unless _linkExists
+            @force.links().push _link
+            @_updateLinks()
+            @_translatePath(@path.transition())
+
+        @onClickFrom = null
+        @onClickTo = null
 
   # Where the magic happens
   _showcaseSubnetwork: (center) ->
@@ -252,23 +288,37 @@ class MabogoGraph
       toXY = d3.map()
       fromXY = d3.map()
 
-      # Set centerNode
+      # Set centerNode to and from
       @_setFromXY(fromXY, center)
       toXY.set(center.id, {x: @Constants.GRAPH_WIDTH/2, y: @Constants.GRAPH_HEIGHT/2})
 
       # Add all associated 1 degree nodes
-      @force.links().forEach (link) =>
-        if center.id in [link.source.id, link.target.id]
-          node = if center.id is link.source.id then link.target else link.source
-          @_setFromXY(fromXY, node)
-          @showcasedNodes.push node
+      @showcasedNodes.push @force.links()
+                              .filter((link) => center in [link.source, link.target])
+                              .map((link) => if center is link.source then link.target else link.source)
 
-      # Set polar x, y for each node
+      @showcasedNodes[1] = []
+
+      # Add all associated 2 degree nodes
+      @force.links().forEach (link) =>
+        _oneDegNodes = @showcasedNodes[0].concat [center]
+
+        if link.source in _oneDegNodes and link.target not in _oneDegNodes
+          @showcasedNodes[1].push link.target 
+        
+        if link.source not in _oneDegNodes and link.target in _oneDegNodes
+          @showcasedNodes[1].push link.source
+
+      console.log @showcasedNodes
+      d3.merge(@showcasedNodes).forEach (node) => @_setFromXY(fromXY, node)
+
+      # RadialMap maps node id to radial (x, y) for each node
       radialMap = RadialPlacement()
                     .center(toXY.get(center.id))
-                    .keys(@showcasedNodes.map (node) -> node.id)
+                    .keys(@showcasedNodes.map (arr) -> arr.map (node) -> node.id)
 
-      @showcasedNodes.forEach (node) ->
+      # Set toXY map
+      d3.merge(@showcasedNodes).forEach (node) ->
         toXY.set(node.id, radialMap(node.id))
 
       # All nodes that exist in @fromXY but not in fromXY
@@ -295,9 +345,9 @@ class MabogoGraph
     context = @
     @node
       .on("mouseover", (d, i) -> 
-        if d in context.showcasedNodes then context._showPreviewDetails(context, @, d) else null)
+        if d in d3.merge(context.showcasedNodes) then context._showPreviewDetails(context, @, d) else null)
       .on("mouseout", (d, i) -> 
-        if d in context.showcasedNodes then context._hidePreviewDetails(context, @, d) else null)
+        if d in d3.merge(context.showcasedNodes) then context._hidePreviewDetails(context, @, d) else null)
 
   _showPreviewDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) ->

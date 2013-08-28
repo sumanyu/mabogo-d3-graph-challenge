@@ -5,11 +5,11 @@
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
   RadialPlacement = function() {
-    var center, current, increment, place, placement, radialLocation, radius, setKeys, start, values;
+    var center, current, innerIncrement, place, placement, radialLocation, radius, setKeys, start, values;
 
     values = d3.map();
-    increment = 20;
-    radius = 200;
+    innerIncrement = 20;
+    radius = 150;
     center = {
       "x": 0,
       "y": 0
@@ -40,15 +40,15 @@
 
       value = radialLocation(center, current, radius);
       values.set(key, value);
-      current += increment;
+      current += innerIncrement;
       return value;
     };
     setKeys = function(keys) {
       var innerKeys;
 
       values = d3.map();
-      increment = 360 / keys.length;
-      innerKeys = keys.splice(0);
+      innerIncrement = 360 / keys[0].length;
+      innerKeys = keys[0];
       return innerKeys.forEach(function(k) {
         return place(k);
       });
@@ -134,6 +134,7 @@
       this._translateXY = __bind(this._translateXY, this);
       this._updateTick = __bind(this._updateTick, this);
       this._freezeNodes = __bind(this._freezeNodes, this);
+      this._addLink = __bind(this._addLink, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
       this._setup();
@@ -198,12 +199,11 @@
       var _this = this;
 
       this.path = this.pathG.selectAll("path.link").data(this.force.links());
+      console.log(this.path);
       this.path.enter().append("svg:path").attr("class", function(d) {
         return "link " + d.type;
       }).attr("stroke-opacity", function() {
         return _this.Constants.NORMAL_LINK_OPACITY;
-      }).attr("marker-end", function(d) {
-        return "url(#" + d.type + ")";
       });
       return this.path.exit().remove();
     };
@@ -222,13 +222,51 @@
         return d.y;
       }).style("fill", function(d) {
         return _this.colorScale(d.type);
-      }).on("click", function(d, i) {
+      }).on("dblclick", function(d, i) {
         if (_this.frozen) {
           return _this._showcaseSubnetwork(d);
+        }
+      }).on("click", function(d, i) {
+        if (_this.frozen) {
+          return _this._addLink(d);
         }
       });
       this._addOnHover();
       return this.node.exit().remove();
+    };
+
+    MabogoGraph.prototype._addLink = function(d) {
+      var _link, _linkExists,
+        _this = this;
+
+      if (!this.showcasing) {
+        if (this.onClickFrom == null) {
+          this.onClickFrom = d;
+          return console.log(this.onClickFrom);
+        } else {
+          this.onClickTo = d;
+          console.log(this.onClickTo, this.onClickFrom);
+          if (this.onClickFrom.id !== this.onClickTo.id) {
+            _link = {
+              source: this.onClickFrom,
+              target: this.onClickTo,
+              type: "friend"
+            };
+            _linkExists = this.force.links().filter(function(link) {
+              var _ref, _ref1;
+
+              return ((_ref = link.source) === _this.onClickFrom || _ref === _this.onClickTo) && ((_ref1 = link.target) === _this.onClickFrom || _ref1 === _this.onClickTo);
+            }).length > 0;
+            if (!_linkExists) {
+              this.force.links().push(_link);
+              this._updateLinks();
+              this._translatePath(this.path.transition());
+            }
+          }
+          this.onClickFrom = null;
+          return this.onClickTo = null;
+        }
+      }
     };
 
     MabogoGraph.prototype._showcaseSubnetwork = function(center) {
@@ -253,19 +291,37 @@
           x: this.Constants.GRAPH_WIDTH / 2,
           y: this.Constants.GRAPH_HEIGHT / 2
         });
+        this.showcasedNodes.push(this.force.links().filter(function(link) {
+          return center === link.source || center === link.target;
+        }).map(function(link) {
+          if (center === link.source) {
+            return link.target;
+          } else {
+            return link.source;
+          }
+        }));
+        this.showcasedNodes[1] = [];
         this.force.links().forEach(function(link) {
-          var node, _ref1;
+          var _oneDegNodes, _ref1, _ref2, _ref3, _ref4;
 
-          if ((_ref1 = center.id) === link.source.id || _ref1 === link.target.id) {
-            node = center.id === link.source.id ? link.target : link.source;
-            _this._setFromXY(fromXY, node);
-            return _this.showcasedNodes.push(node);
+          _oneDegNodes = _this.showcasedNodes[0].concat([center]);
+          if ((_ref1 = link.source, __indexOf.call(_oneDegNodes, _ref1) >= 0) && (_ref2 = link.target, __indexOf.call(_oneDegNodes, _ref2) < 0)) {
+            _this.showcasedNodes[1].push(link.target);
+          }
+          if ((_ref3 = link.source, __indexOf.call(_oneDegNodes, _ref3) < 0) && (_ref4 = link.target, __indexOf.call(_oneDegNodes, _ref4) >= 0)) {
+            return _this.showcasedNodes[1].push(link.source);
           }
         });
-        radialMap = RadialPlacement().center(toXY.get(center.id)).keys(this.showcasedNodes.map(function(node) {
-          return node.id;
+        console.log(this.showcasedNodes);
+        d3.merge(this.showcasedNodes).forEach(function(node) {
+          return _this._setFromXY(fromXY, node);
+        });
+        radialMap = RadialPlacement().center(toXY.get(center.id)).keys(this.showcasedNodes.map(function(arr) {
+          return arr.map(function(node) {
+            return node.id;
+          });
         }));
-        this.showcasedNodes.forEach(function(node) {
+        d3.merge(this.showcasedNodes).forEach(function(node) {
           return toXY.set(node.id, radialMap(node.id));
         });
         restoreXY = this.Utility.mapAMinusB(this.fromXY, fromXY);
@@ -294,13 +350,13 @@
 
       context = this;
       return this.node.on("mouseover", function(d, i) {
-        if (__indexOf.call(context.showcasedNodes, d) >= 0) {
+        if (__indexOf.call(d3.merge(context.showcasedNodes), d) >= 0) {
           return context._showPreviewDetails(context, this, d);
         } else {
           return null;
         }
       }).on("mouseout", function(d, i) {
-        if (__indexOf.call(context.showcasedNodes, d) >= 0) {
+        if (__indexOf.call(d3.merge(context.showcasedNodes), d) >= 0) {
           return context._hidePreviewDetails(context, this, d);
         } else {
           return null;
