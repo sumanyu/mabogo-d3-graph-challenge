@@ -37,21 +37,18 @@ RadialPlacement = () ->
 
   # Given a set of keys, set x,y
   # Expects radius, center to be set.
-  # Keys is array of array [[node.id..], [node.id..]]
+  # Keys is array [node.id1, node.id..]
   setKeys = (keys) ->
     # start with an empty values
     values = d3.map()
 
-    innerIncrement = 360 / keys[0].length
+    innerIncrement = 360 / keys.length
 
     # Shallow copy
-    innerKeys = keys[0]
+    innerKeys = keys.splice(0)
 
     # set locations inside circle
     innerKeys.forEach (k) -> place(k)
-
-    # set locations for other circle
-
 
   placement.keys = (_) ->
     if !arguments.length
@@ -295,32 +292,19 @@ class MabogoGraph
       toXY.set(center.id, {x: @Constants.GRAPH_WIDTH/2, y: @Constants.GRAPH_HEIGHT/2})
 
       # Add all associated 1 degree nodes
-      @showcasedNodes.push @force.links()
+      @showcasedNodes = @force.links()
                               .filter((link) => center in [link.source, link.target])
                               .map((link) => if center is link.source then link.target else link.source)
 
-      @showcasedNodes[1] = []
-
-      # Add all associated 2 degree nodes
-      @force.links().forEach (link) =>
-        _oneDegNodes = @showcasedNodes[0].concat [center]
-
-        if link.source in _oneDegNodes and link.target not in _oneDegNodes
-          @showcasedNodes[1].push link.target 
-        
-        if link.source not in _oneDegNodes and link.target in _oneDegNodes
-          @showcasedNodes[1].push link.source
-
-      console.log @showcasedNodes
-      d3.merge(@showcasedNodes).forEach (node) => @_setFromXY(fromXY, node)
+      @showcasedNodes.forEach (node) => @_setFromXY(fromXY, node)
 
       # RadialMap maps node id to radial (x, y) for each node
       radialMap = RadialPlacement()
                     .center(toXY.get(center.id))
-                    .keys(@showcasedNodes.map (arr) -> arr.map (node) -> node.id)
+                    .keys((@showcasedNodes.map (node) -> node.id))
 
       # Set toXY map
-      d3.merge(@showcasedNodes).forEach (node) ->
+      @showcasedNodes.forEach (node) ->
         toXY.set(node.id, radialMap(node.id))
 
       # All nodes that exist in @fromXY but not in fromXY
@@ -347,9 +331,9 @@ class MabogoGraph
     context = @
     @node
       .on("mouseover", (d, i) -> 
-        if d in d3.merge(context.showcasedNodes) then context._showPreviewDetails(context, @, d) else null)
+        if d in context.showcasedNodes then context._showPreviewDetails(context, @, d) else null)
       .on("mouseout", (d, i) -> 
-        if d in d3.merge(context.showcasedNodes) then context._hidePreviewDetails(context, @, d) else null)
+        if d in context.showcasedNodes then context._hidePreviewDetails(context, @, d) else null)
 
   _showPreviewDetails: (context, obj, d) ->
     context.path.attr("stroke-opacity", (l) ->

@@ -47,8 +47,8 @@
       var innerKeys;
 
       values = d3.map();
-      innerIncrement = 360 / keys[0].length;
-      innerKeys = keys[0];
+      innerIncrement = 360 / keys.length;
+      innerKeys = keys.splice(0);
       return innerKeys.forEach(function(k) {
         return place(k);
       });
@@ -297,7 +297,7 @@
           x: this.Constants.GRAPH_WIDTH / 2,
           y: this.Constants.GRAPH_HEIGHT / 2
         });
-        this.showcasedNodes.push(this.force.links().filter(function(link) {
+        this.showcasedNodes = this.force.links().filter(function(link) {
           return center === link.source || center === link.target;
         }).map(function(link) {
           if (center === link.source) {
@@ -305,29 +305,14 @@
           } else {
             return link.source;
           }
-        }));
-        this.showcasedNodes[1] = [];
-        this.force.links().forEach(function(link) {
-          var _oneDegNodes, _ref1, _ref2, _ref3, _ref4;
-
-          _oneDegNodes = _this.showcasedNodes[0].concat([center]);
-          if ((_ref1 = link.source, __indexOf.call(_oneDegNodes, _ref1) >= 0) && (_ref2 = link.target, __indexOf.call(_oneDegNodes, _ref2) < 0)) {
-            _this.showcasedNodes[1].push(link.target);
-          }
-          if ((_ref3 = link.source, __indexOf.call(_oneDegNodes, _ref3) < 0) && (_ref4 = link.target, __indexOf.call(_oneDegNodes, _ref4) >= 0)) {
-            return _this.showcasedNodes[1].push(link.source);
-          }
         });
-        console.log(this.showcasedNodes);
-        d3.merge(this.showcasedNodes).forEach(function(node) {
+        this.showcasedNodes.forEach(function(node) {
           return _this._setFromXY(fromXY, node);
         });
-        radialMap = RadialPlacement().center(toXY.get(center.id)).keys(this.showcasedNodes.map(function(arr) {
-          return arr.map(function(node) {
-            return node.id;
-          });
+        radialMap = RadialPlacement().center(toXY.get(center.id)).keys(this.showcasedNodes.map(function(node) {
+          return node.id;
         }));
-        d3.merge(this.showcasedNodes).forEach(function(node) {
+        this.showcasedNodes.forEach(function(node) {
           return toXY.set(node.id, radialMap(node.id));
         });
         restoreXY = this.Utility.mapAMinusB(this.fromXY, fromXY);
@@ -356,13 +341,13 @@
 
       context = this;
       return this.node.on("mouseover", function(d, i) {
-        if (__indexOf.call(d3.merge(context.showcasedNodes), d) >= 0) {
+        if (__indexOf.call(context.showcasedNodes, d) >= 0) {
           return context._showPreviewDetails(context, this, d);
         } else {
           return null;
         }
       }).on("mouseout", function(d, i) {
-        if (__indexOf.call(d3.merge(context.showcasedNodes), d) >= 0) {
+        if (__indexOf.call(context.showcasedNodes, d) >= 0) {
           return context._hidePreviewDetails(context, this, d);
         } else {
           return null;
