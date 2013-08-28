@@ -117,6 +117,7 @@ class MabogoGraph
     @_setup()
     @_updateData(data.nodes, data.links)
     @_drawChart()
+    @_setHooks()
 
   _setup: ->
 
@@ -408,7 +409,7 @@ class MabogoGraph
               .data(@force.nodes())
             
     do (g = @text.enter().append("svg:g")) => 
-      ["shadow", "label"].forEach (clss) =>
+      ["shadow", "lbl"].forEach (clss) =>
         g.append("svg:text")
             .attr("x", 8)
             .attr("y", ".31em")
@@ -457,10 +458,17 @@ class MabogoGraph
       "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
     )
 
+  _setHooks: ->
+    $('.nav-tabs').button()
+
+    $('#graph-save').click (e) -> 
+      $(@).button('loading')
+      window.setTimeout((=> $(@).button('reset')), 2000)
+
+    $('#graph-reset').click (e) ->
+      console.log "reset"
+
 $ ->
-
-  $('.nav-tabs').button()
-
   $("#mobogo-graph-container").each ->
     d3.json "data.json", (err, data) =>
       new MabogoGraph($(@), data)

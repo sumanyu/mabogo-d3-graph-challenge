@@ -19,7 +19,7 @@
           <svg id="mobogo-graph"></svg>
         </div>
 
-        <div class ="col-md-4" id="mobogo-graph-panel">
+        <div class ="col-md-3" id="mobogo-graph-panel">
           <div class="row">
             <div id="graph-info">
               <br />
@@ -46,15 +46,24 @@
               <h2>Link</h2>
               <br />
               <div class="btn-group" data-toggle="buttons" id="link-mode">
-                <label class="btn btn-primary">
-                  <input type="radio" name="options" id="add"> Add
+                <label class="btn btn-primary btn-link-add">
+                  <input type="radio" name="options" id="link-add"> Add
                 </label>
-                <label class="btn btn-primary">
-                  <input type="radio" name="options" id="delete"> Delete
+                <label class="btn btn-primary btn-link-delete">
+                  <input type="radio" name="options" id="link-delete"> Delete
                 </label>
-                <label class="btn btn-primary">
-                  <input type="radio" name="options" id="update"> Update
-                </label>
+                <div class="btn-group">
+                  <label class="btn btn-primary btn-link-update">
+                    <input type="radio" name="options" id="link-update" style="display:none"> Update
+                  </label>
+                  <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                    <span class="caret"></span>
+                  </button>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a href="#">Friend</a></li>
+                    <li><a href="#">Acquantaince</a></li>
+                  </ul>
+                </div>
               </div>
             </div>
             <br />
@@ -62,12 +71,22 @@
               <h2>Node</h2>
               <br />
               <div class="btn-group" data-toggle="buttons" id="node-mode">
-                <label class="btn btn-primary">
-                  <input type="radio" name="options" id="add"> Add
+                <label class="btn btn-primary btn-node-add">
+                  <input type="radio" name="options" id="node-add"> Add
                 </label>
-                <label class="btn btn-primary">
-                  <input type="radio" name="options" id="delete"> Delete
+                <label class="btn btn-primary btn-node-delete">
+                  <input type="radio" name="options" id="node-delete"> Delete
                 </label>
+              </div>
+            </div>
+            <div class="row">
+              <br />
+              <br />
+              <br />
+              <br />
+              <div class="btn-group">
+                <button type="botton" class="btn btn-primary btn-save" id="graph-save" data-loading-text="Saving...">Save</button>
+                <button type="botton" class="btn btn-primary btn-reset" id="graph-reset">Reset</button>
               </div>
             </div>
           </div>

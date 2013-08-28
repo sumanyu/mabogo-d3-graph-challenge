@@ -144,6 +144,7 @@
       this._setup();
       this._updateData(data.nodes, data.links);
       this._drawChart();
+      this._setHooks();
     }
 
     MabogoGraph.prototype._setup = function() {
@@ -470,7 +471,7 @@
 
       this.text = this.textG.selectAll("g").data(this.force.nodes());
       (function(g) {
-        return ["shadow", "label"].forEach(function(clss) {
+        return ["shadow", "lbl"].forEach(function(clss) {
           return g.append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", clss).text(function(d) {
             return d.name;
           });
@@ -545,12 +546,26 @@
       });
     };
 
+    MabogoGraph.prototype._setHooks = function() {
+      $('.nav-tabs').button();
+      $('#graph-save').click(function(e) {
+        var _this = this;
+
+        $(this).button('loading');
+        return window.setTimeout((function() {
+          return $(_this).button('reset');
+        }), 2000);
+      });
+      return $('#graph-reset').click(function(e) {
+        return console.log("reset");
+      });
+    };
+
     return MabogoGraph;
 
   })();
 
   $(function() {
-    $('.nav-tabs').button();
     return $("#mobogo-graph-container").each(function() {
       var _this = this;
 

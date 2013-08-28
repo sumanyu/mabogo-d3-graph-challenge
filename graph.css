@@ -1,5 +1,6 @@
 #mobogo-graph-container {
-
+  margin-left: 0px;
+  padding-left: 0px;
 }
 
 path.link {
@@ -36,7 +37,18 @@ text.shadow {
   stroke-opacity: .8;
 }
 
-#mobogo-graph-panel {
-  float: left;
-  width: 280px;
+.btn-link-add, .btn-link-delete {
+  width: 70px;
+}
+
+.btn-link-update {
+  width: 110px;
+}
+
+.btn-node-add, .btn-node-delete {
+  width: 137px;
+}
+
+.btn-save, .btn-reset {
+  width: 137px;
 }
