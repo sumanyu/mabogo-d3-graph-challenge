@@ -186,7 +186,7 @@ class MabogoGraph
     @_updateNodes()
     @_updateText()
 
-    window.setTimeout(@_freezeNodes, 4000)
+    @_freezeAfter 4000
 
   # Adds arrow tips
   _addMarkers: ->
@@ -261,6 +261,7 @@ class MabogoGraph
             @force.links().push _link
             @_updateLinks()
             @_translatePath(@path.transition())
+            @_unfreezeFor(2000)
 
         @onClickFrom = null
         @onClickTo = null
@@ -416,10 +417,28 @@ class MabogoGraph
 
     @text.exit().remove()
 
+  _unfreezeFor: (time) =>
+    @_unfreezeNodes()
+    @_updateNodes()
+    @force.start()
+    window.setTimeout(@_freezeNodes, time)
+
+  _freezeAfter: (time) =>
+    window.setTimeout(@_freezeNodes, time)
+
+  _changeFixedTo: (val) =>
+    console.log @force.nodes()
+    @force.nodes().forEach (node) -> node.fixed = val
+    console.log @force.nodes()
+    @frozen = val
+    console.log @frozen
+
+  _unfreezeNodes: =>
+    console.log @frozen
+    if @frozen then @_changeFixedTo false
+
   _freezeNodes: =>
-    unless @frozen
-      @force.nodes().forEach (node) -> node.fixed = true
-      @frozen = true
+    unless @frozen then @_changeFixedTo true
 
   _updateTick: =>
     unless @showcasing
@@ -427,10 +446,10 @@ class MabogoGraph
       @_translatePath(@path)
 
   _translateXY: (selection, mapXY=null) =>
-    selection.attr("transform", (d) -> 
+    selection.attr("transform", (d) ->
       d.x = mapXY?.get(d.id)?.x ? d.x
       d.y = mapXY?.get(d.id)?.y ? d.y
-      "translate(" + d.x + "," + d.y + ")") 
+      "translate(" + d.x + "," + d.y + ")")
 
   _translatePath: (path) =>
     path.attr("d", (d) ->

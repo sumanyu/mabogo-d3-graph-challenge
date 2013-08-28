@@ -134,6 +134,10 @@
       this._translateXY = __bind(this._translateXY, this);
       this._updateTick = __bind(this._updateTick, this);
       this._freezeNodes = __bind(this._freezeNodes, this);
+      this._unfreezeNodes = __bind(this._unfreezeNodes, this);
+      this._changeFixedTo = __bind(this._changeFixedTo, this);
+      this._freezeAfter = __bind(this._freezeAfter, this);
+      this._unfreezeFor = __bind(this._unfreezeFor, this);
       this._addLink = __bind(this._addLink, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
@@ -187,7 +191,7 @@
       this._updateLinks();
       this._updateNodes();
       this._updateText();
-      return window.setTimeout(this._freezeNodes, 4000);
+      return this._freezeAfter(4000);
     };
 
     MabogoGraph.prototype._addMarkers = function() {
@@ -261,6 +265,7 @@
               this.force.links().push(_link);
               this._updateLinks();
               this._translatePath(this.path.transition());
+              this._unfreezeFor(2000);
             }
           }
           this.onClickFrom = null;
@@ -474,12 +479,37 @@
       return this.text.exit().remove();
     };
 
+    MabogoGraph.prototype._unfreezeFor = function(time) {
+      this._unfreezeNodes();
+      this._updateNodes();
+      this.force.start();
+      return window.setTimeout(this._freezeNodes, time);
+    };
+
+    MabogoGraph.prototype._freezeAfter = function(time) {
+      return window.setTimeout(this._freezeNodes, time);
+    };
+
+    MabogoGraph.prototype._changeFixedTo = function(val) {
+      console.log(this.force.nodes());
+      this.force.nodes().forEach(function(node) {
+        return node.fixed = val;
+      });
+      console.log(this.force.nodes());
+      this.frozen = val;
+      return console.log(this.frozen);
+    };
+
+    MabogoGraph.prototype._unfreezeNodes = function() {
+      console.log(this.frozen);
+      if (this.frozen) {
+        return this._changeFixedTo(false);
+      }
+    };
+
     MabogoGraph.prototype._freezeNodes = function() {
       if (!this.frozen) {
-        this.force.nodes().forEach(function(node) {
-          return node.fixed = true;
-        });
-        return this.frozen = true;
+        return this._changeFixedTo(true);
       }
     };
 
