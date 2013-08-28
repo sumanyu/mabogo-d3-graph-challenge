@@ -1,21 +1,89 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="UTF-8">
-		<link type="text/css" rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css">
-		<link type="text/css" rel="stylesheet" href="graph.css">
-		<script src="http://code.jquery.com/jquery-1.10.1.min.js" type="text/javascript"></script>
-		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.15/jquery-ui.min.js"></script>
-		<script src="http://d3js.org/d3.v3.min.js" charset="utf-8" type="text/javascript"></script>
-		<script src="graph.js" charset="utf-8" type="text/javascript"></script>
-		
-	</head>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="text/css" rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css">
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-theme.min.css">  
+    <link type="text/css" rel="stylesheet" href="graph.css">  
+  </head>
 
   <body>
-  	<div id="mobogo-graph-container">
-	  <svg id="mobogo-graph">
-	  </svg>
-	</div>
-		
+    <div class="container" id="mobogo-graph-container">
+      <div class="row">
+
+        <div class="col-md-9"> 
+          <svg id="mobogo-graph"></svg>
+        </div>
+
+        <div class ="col-md-4" id="mobogo-graph-panel">
+          <div class="row">
+            <div id="graph-info">
+              <br />
+              <h2>Mabogo</h2>
+              <br />
+              <table class="table table-condensed">
+                <thead>
+                  <tr>
+                    <td>Connected to</td>
+                    <td>Relationship</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Testing</td>
+                    <td>Friend</td>
+                  <tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div id="graph-controls">
+            <div class="row" id="link-controls">
+              <h2>Link</h2>
+              <br />
+              <div class="btn-group" data-toggle="buttons" id="link-mode">
+                <label class="btn btn-primary">
+                  <input type="radio" name="options" id="add"> Add
+                </label>
+                <label class="btn btn-primary">
+                  <input type="radio" name="options" id="delete"> Delete
+                </label>
+                <label class="btn btn-primary">
+                  <input type="radio" name="options" id="update"> Update
+                </label>
+              </div>
+            </div>
+            <br />
+            <div class="row">
+              <h2>Node</h2>
+              <br />
+              <div class="btn-group" data-toggle="buttons" id="node-mode">
+                <label class="btn btn-primary">
+                  <input type="radio" name="options" id="add"> Add
+                </label>
+                <label class="btn btn-primary">
+                  <input type="radio" name="options" id="delete"> Delete
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js" type="text/javascript"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.15/jquery-ui.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8" type="text/javascript"></script>
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+
+    <script src="graph.js" charset="utf-8" type="text/javascript"></script> 
+
   </body>
 </html>

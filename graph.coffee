@@ -420,18 +420,16 @@ class MabogoGraph
   _unfreezeFor: (time) =>
     @_unfreezeNodes()
     @_updateNodes()
+    # Reheat animation
     @force.start()
-    window.setTimeout(@_freezeNodes, time)
+    @_freezeAfter time
 
   _freezeAfter: (time) =>
     window.setTimeout(@_freezeNodes, time)
 
   _changeFixedTo: (val) =>
-    console.log @force.nodes()
     @force.nodes().forEach (node) -> node.fixed = val
-    console.log @force.nodes()
     @frozen = val
-    console.log @frozen
 
   _unfreezeNodes: =>
     console.log @frozen
@@ -460,6 +458,9 @@ class MabogoGraph
     )
 
 $ ->
+
+  $('.nav-tabs').button()
+
   $("#mobogo-graph-container").each ->
     d3.json "data.json", (err, data) =>
       new MabogoGraph($(@), data)

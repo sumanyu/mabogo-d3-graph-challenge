@@ -483,7 +483,7 @@
       this._unfreezeNodes();
       this._updateNodes();
       this.force.start();
-      return window.setTimeout(this._freezeNodes, time);
+      return this._freezeAfter(time);
     };
 
     MabogoGraph.prototype._freezeAfter = function(time) {
@@ -491,13 +491,10 @@
     };
 
     MabogoGraph.prototype._changeFixedTo = function(val) {
-      console.log(this.force.nodes());
       this.force.nodes().forEach(function(node) {
         return node.fixed = val;
       });
-      console.log(this.force.nodes());
-      this.frozen = val;
-      return console.log(this.frozen);
+      return this.frozen = val;
     };
 
     MabogoGraph.prototype._unfreezeNodes = function() {
@@ -553,6 +550,7 @@
   })();
 
   $(function() {
+    $('.nav-tabs').button();
     return $("#mobogo-graph-container").each(function() {
       var _this = this;
 
