@@ -41,18 +41,24 @@
             <div class="row" id="link-controls">
               <h2>Link</h2>
               <br />
-              <div class="btn-group" data-toggle="buttons" id="link-mode">
-                <label class="btn btn-primary btn-link-add">
-                  <input type="checkbox" id="link-add"> Add
-                </label>
-                <label class="btn btn-primary btn-link-delete">
-                  <input type="checkbox" id="link-delete"> Delete
-                </label>
+              <div class="btn-group" id="link-mode">
+
+<!--                 <div class="btn-group">
+                  <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" id="link-add">
+                    Add...
+                    <span class="caret"></span>
+                  </button>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a href="#">Friend</a></li>
+                    <li><a href="#">Acquantaince</a></li>
+                  </ul>
+                </div> -->
+
+                <button type="button" class="btn btn-primary btn-link-add" data-toggle="button" id="link-add">Add</button>
+                <button type="button" class="btn btn-primary" data-toggle="button" id="link-delete">Delete</button>
                 <div class="btn-group">
-                  <label class="btn btn-primary btn-link-update">
-                    <input type="checkbox" id="link-update" style="display:none"> Update
-                  </label>
-                  <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                  <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" id="link-update">
+                    Update...
                     <span class="caret"></span>
                   </button>
                   <ul class="dropdown-menu" role="menu">
@@ -66,13 +72,9 @@
             <div class="row">
               <h2>Node</h2>
               <br />
-              <div class="btn-group" data-toggle="buttons" id="node-mode">
-                <label class="btn btn-primary btn-node-add">
-                  <input type="radio" name="options" id="node-add"> Add
-                </label>
-                <label class="btn btn-primary btn-node-delete">
-                  <input type="radio" name="options" id="node-delete"> Delete
-                </label>
+              <div class="btn-group" id="node-mode">
+                <button type="button" class="btn btn-primary btn-node-add" data-toggle="button" id="node-add">Add</button>
+                <button type="button" class="btn btn-primary btn-node-delete" data-toggle="button" id="node-delete">Delete</button>
               </div>
             </div>
             <div class="row">

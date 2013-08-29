@@ -137,7 +137,7 @@ class MabogoGraph
 
     @showcasing = false
 
-    @userActions = []
+    @activeUserAction = []
 
   # Nodes expect the following fields
   # Randomly assigned values if not supplied
@@ -229,120 +229,117 @@ class MabogoGraph
       .attr("x", (d) -> d.x)
       .attr("y", (d) -> d.y)
       .style("fill", (d) => @colorScale(d.type))
-      .on("dblclick", (d, i) => @_showcaseSubnetwork(d) if @frozen )
-      .on("click", (d, i) => @_userAction(d) if @frozen )
+      .on("dblclick", (d, i) => @_showcaseSubnetwork(d))
 
     @_addOnHover()
 
     @node.exit().remove()
 
-  _userAction: (d) =>
-    console.log $('#link-add').val()
-    console.log $('#link-delete').val()
-    console.log $('#link-update').val()
-    console.log $('input:radio[name=options]:checked').val()
-
+  # Delete link on link's onClick
   _userDeleteLink: (d) =>
     console.log 'userDeleteLink'
 
+  # Add new node on SVG's onClick
   _userAddNode: (d) =>
     console.log "_userAddNode"
 
+  # Delete node, links, text on node's onClick
   _userDeleteNode: (d) =>
     console.log "_userDeleteNode"
 
+  # Change link type on link's onClick
   _userUpdateLink: (d) =>
     console.log "_userUpdateLink"
 
   # Draw's link from one node to another
-  _userAddLink: (d) =>
-    # Must not be showcasing
-    unless @showcasing
-      unless @onClickFrom? 
-        @onClickFrom = d
-        console.log @onClickFrom
-      else
-        @onClickTo = d
-        console.log @onClickTo, @onClickFrom
-        unless @onClickFrom.id is @onClickTo.id
-          # add edge to data
-          _link =
-            source: @onClickFrom
-            target: @onClickTo
-            type: "friend"
+  _userAddLink: (d, linkType='friend', fn) =>
+    unless @onClickFrom? 
+      @onClickFrom = d
+      console.log @onClickFrom
+    else
+      @onClickTo = d
+      console.log @onClickTo, @onClickFrom
+      unless @onClickFrom.id is @onClickTo.id
+        # add edge to data
+        _link =
+          source: @onClickFrom
+          target: @onClickTo
+          type: linkType
 
-          _linkExists = @force.links().filter((link) => 
-            link.source in [@onClickFrom, @onClickTo] and link.target in [@onClickFrom, @onClickTo]).length > 0
+        _linkExists = @force.links().filter((link) => 
+          link.source in [@onClickFrom, @onClickTo] and link.target in [@onClickFrom, @onClickTo]).length > 0
 
-          # Add link only if link doesn't exist
-          unless _linkExists
-            @force.links().push _link
-            @_updateLinks()
-            @_translatePath(@path.transition())
-            @_unfreezeFor(2000)
+        # Add link only if link doesn't exist
+        unless _linkExists
+          @force.links().push _link
+          @_updateLinks()
+          @_translatePath(@path.transition())
+          @_unfreezeFor(2000)
 
-        @onClickFrom = null
-        @onClickTo = null
+      fn() # cleanup callback
+      @onClickFrom = null
+      @onClickTo = null
 
   # Where the magic happens
   _showcaseSubnetwork: (center) ->
+    # must be frozen
+    if @frozen 
+      # Restore all if old center node is clicked
+      if center.id is @centerNode?.id
+        @showcasing = false
 
-    # Restore all if old center node is clicked
-    if center.id is @centerNode?.id
-      @showcasing = false
+        @_translateGraph(@fromXY)
 
-      @_translateGraph(@fromXY)
+        # Reset from xy
+        @fromXY = d3.map()
+        
+        @centerNode = null
+        @_restoreOpacity()
+        @_addOnHover()  
+      else
+        @showcasing = true
+        @showcasedNodes = []
+        @showcasedLinks = []
+        @centerNode = center
 
-      # Reset from xy
-      @fromXY = d3.map()
-      
-      @centerNode = null
-      @_restoreOpacity()
-      @_addOnHover()  
-    else
-      @showcasing = true
-      @showcasedNodes = []
-      @showcasedLinks = []
-      @centerNode = center
+        toXY = d3.map()
+        fromXY = d3.map()
 
-      toXY = d3.map()
-      fromXY = d3.map()
+        # Set centerNode to and from
+        @_setFromXY(fromXY, center)
+        toXY.set(center.id, {x: @Constants.GRAPH_WIDTH/2, y: @Constants.GRAPH_HEIGHT/2})
 
-      # Set centerNode to and from
-      @_setFromXY(fromXY, center)
-      toXY.set(center.id, {x: @Constants.GRAPH_WIDTH/2, y: @Constants.GRAPH_HEIGHT/2})
+        # Add all associated 1 degree nodes
+        @showcasedLinks = @force.links()
+                                .filter((link) => center in [link.source, link.target])
+        @showcasedNodes = @showcasedLinks.map((link) => if center is link.source then link.target else link.source)
 
-      # Add all associated 1 degree nodes
-      @showcasedLinks = @force.links()
-                              .filter((link) => center in [link.source, link.target])
-      @showcasedNodes = @showcasedLinks.map((link) => if center is link.source then link.target else link.source)
+        @showcasedNodes.forEach (node) => @_setFromXY(fromXY, node)
 
-      @showcasedNodes.forEach (node) => @_setFromXY(fromXY, node)
+        # RadialMap maps node id to radial (x, y) for each node
+        radialMap = RadialPlacement()
+                      .center(toXY.get(center.id))
+                      .keys((@showcasedNodes.map (node) -> node.id))
 
-      # RadialMap maps node id to radial (x, y) for each node
-      radialMap = RadialPlacement()
-                    .center(toXY.get(center.id))
-                    .keys((@showcasedNodes.map (node) -> node.id))
+        # Set toXY map
+        @showcasedNodes.forEach (node) ->
+          toXY.set(node.id, radialMap(node.id))
 
-      # Set toXY map
-      @showcasedNodes.forEach (node) ->
-        toXY.set(node.id, radialMap(node.id))
+        # All nodes that exist in @fromXY but not in fromXY
+        # These nodes will be restored to original XY
+        restoreXY = @Utility.mapAMinusB(@fromXY, fromXY)
 
-      # All nodes that exist in @fromXY but not in fromXY
-      # These nodes will be restored to original XY
-      restoreXY = @Utility.mapAMinusB(@fromXY, fromXY)
+        # Translate new nodes, old nodes
+        [toXY, restoreXY].forEach (argMap) =>    
+          @_translateGraph(argMap)
 
-      # Translate new nodes, old nodes
-      [toXY, restoreXY].forEach (argMap) =>    
-        @_translateGraph(argMap)
+        # Change node, text, path's opacity
+        @_highlightShowcased(toXY)
+        @_removeOnHover()
 
-      # Change node, text, path's opacity
-      @_highlightShowcased(toXY)
-      @_removeOnHover()
+        @fromXY = fromXY
 
-      @fromXY = fromXY
-
-      @_postShowcaseInfoToPanel(@centerNode, @showcasedLinks)
+        @_postShowcaseInfoToPanel(@centerNode, @showcasedLinks)
 
   _addOnHover: ->
     context = @
@@ -465,12 +462,11 @@ class MabogoGraph
       "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
     )
 
+  # Posts showcased node name, 1-degree node names and their relationships
   _postShowcaseInfoToPanel: (center, showcasedLinks) ->
     $('#node-name').text center.name
 
     tableBody = d3.select($('#relationship-table').find('tbody').empty()[0])
-
-    console.log tableBody
 
     links = showcasedLinks.map (link) -> 
       tmp = 
@@ -497,18 +493,71 @@ class MabogoGraph
     $('#graph-reset').click (e) ->
       console.log "reset"
 
-    $('#link-add').click (e) ->
-      console.log $(@).button('toggle')
+    # clickFnMap = @_mapSelectorToOnClickFn()
+    ['#node-add', '#node-delete', '#link-add', '#link-delete'].forEach (selector) =>
+      $(selector).click (e) =>
+        # dedicated fn
+        @_addNewUserAction(selector)
 
-    $('#link-mode').click (e) ->
-      console.log $(e.target).find('input')
-      # $(e.target).find('input').parent().click((event) -> event.stopPropagation())
-      console.log $('#link-add').val()
-      console.log $('#link-delete').val()
-      console.log $('#link-update').val()
-      console.log $('#link-add').parent()
-      console.log $('#link-delete').parent()
-      console.log $('#link-update').parent()
+    @_setUserActionHooks()
+
+  # Hooks for nodes, links and SVG
+  _setUserActionHooks: =>
+    # Nodes -> creating a link, deleting a node
+    @node.on("click", (d, i) => @_userActionDispatcher(d, @_userNodeAction))
+
+    # Links -> updating a link, deleting a link
+    @path.on("click", (d, i) => @_userActionDispatcher(d, @_userLinkAction))
+
+    # SVG -> add node
+    $(@vis[0]).click (e) =>
+      @_userActionDispatcher(null, (d) => 
+        if @activeUserAction[0] is '#node-add'
+          console.log "add node"
+          @_resetUserAction())
+
+  _userActionDispatcher: (d, dispatcher) =>
+    # must be frozen
+    if @frozen
+      # Must not be showcasing
+      unless @showcasing   
+        dispatcher(d)
+
+    d3.event?.stopPropagation()
+
+  # Links -> updating a link, deleting a link
+  _userLinkAction: (d) =>
+    switch @activeUserAction[0]
+      when '#link-delete'
+        console.log 'link-delete'
+        @_resetUserAction()
+      when '#link-update'
+        console.log "link-update"
+        @_resetUserAction()
+
+  # Nodes -> creating a link, deleting a node
+  _userNodeAction: (d) =>
+    switch @activeUserAction[0]
+      when '#link-add'
+        @_userAddLink(d, 'friend', @_resetUserAction)
+      when '#node-delete'
+        console.log "node-delete"
+        @_resetUserAction()
+
+  # Ensures only one button is toggled at one time
+  _addNewUserAction: (newUserAction) ->
+    if @activeUserAction.length > 0
+      lastUserAction = @activeUserAction.pop()
+      if newUserAction isnt lastUserAction
+        $(lastUserAction).button('toggle')
+        @activeUserAction.push(newUserAction)
+    else
+      @activeUserAction.push(newUserAction)
+
+  # Removes active user action from the stack
+  _resetUserAction: =>
+    $(@activeUserAction.pop()).button('toggle')
+
 $ ->
   $("#mobogo-graph-container").each ->
     d3.json "data.json", (err, data) =>

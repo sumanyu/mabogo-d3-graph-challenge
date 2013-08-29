@@ -130,6 +130,11 @@
   MabogoGraph = (function() {
     function MabogoGraph(body, data) {
       this.body = body;
+      this._resetUserAction = __bind(this._resetUserAction, this);
+      this._userNodeAction = __bind(this._userNodeAction, this);
+      this._userLinkAction = __bind(this._userLinkAction, this);
+      this._userActionDispatcher = __bind(this._userActionDispatcher, this);
+      this._setUserActionHooks = __bind(this._setUserActionHooks, this);
       this._translatePath = __bind(this._translatePath, this);
       this._translateXY = __bind(this._translateXY, this);
       this._updateTick = __bind(this._updateTick, this);
@@ -143,7 +148,6 @@
       this._userDeleteNode = __bind(this._userDeleteNode, this);
       this._userAddNode = __bind(this._userAddNode, this);
       this._userDeleteLink = __bind(this._userDeleteLink, this);
-      this._userAction = __bind(this._userAction, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
       this._setup();
@@ -160,7 +164,7 @@
       this.frozen = false;
       this.fromXY = d3.map();
       this.showcasing = false;
-      return this.userActions = [];
+      return this.activeUserAction = [];
     };
 
     MabogoGraph.prototype._updateData = function(nodes, links) {
@@ -234,23 +238,10 @@
       }).style("fill", function(d) {
         return _this.colorScale(d.type);
       }).on("dblclick", function(d, i) {
-        if (_this.frozen) {
-          return _this._showcaseSubnetwork(d);
-        }
-      }).on("click", function(d, i) {
-        if (_this.frozen) {
-          return _this._userAction(d);
-        }
+        return _this._showcaseSubnetwork(d);
       });
       this._addOnHover();
       return this.node.exit().remove();
-    };
-
-    MabogoGraph.prototype._userAction = function(d) {
-      console.log($('#link-add').val());
-      console.log($('#link-delete').val());
-      console.log($('#link-update').val());
-      return console.log($('input:radio[name=options]:checked').val());
     };
 
     MabogoGraph.prototype._userDeleteLink = function(d) {
@@ -269,38 +260,40 @@
       return console.log("_userUpdateLink");
     };
 
-    MabogoGraph.prototype._userAddLink = function(d) {
+    MabogoGraph.prototype._userAddLink = function(d, linkType, fn) {
       var _link, _linkExists,
         _this = this;
 
-      if (!this.showcasing) {
-        if (this.onClickFrom == null) {
-          this.onClickFrom = d;
-          return console.log(this.onClickFrom);
-        } else {
-          this.onClickTo = d;
-          console.log(this.onClickTo, this.onClickFrom);
-          if (this.onClickFrom.id !== this.onClickTo.id) {
-            _link = {
-              source: this.onClickFrom,
-              target: this.onClickTo,
-              type: "friend"
-            };
-            _linkExists = this.force.links().filter(function(link) {
-              var _ref, _ref1;
+      if (linkType == null) {
+        linkType = 'friend';
+      }
+      if (this.onClickFrom == null) {
+        this.onClickFrom = d;
+        return console.log(this.onClickFrom);
+      } else {
+        this.onClickTo = d;
+        console.log(this.onClickTo, this.onClickFrom);
+        if (this.onClickFrom.id !== this.onClickTo.id) {
+          _link = {
+            source: this.onClickFrom,
+            target: this.onClickTo,
+            type: linkType
+          };
+          _linkExists = this.force.links().filter(function(link) {
+            var _ref, _ref1;
 
-              return ((_ref = link.source) === _this.onClickFrom || _ref === _this.onClickTo) && ((_ref1 = link.target) === _this.onClickFrom || _ref1 === _this.onClickTo);
-            }).length > 0;
-            if (!_linkExists) {
-              this.force.links().push(_link);
-              this._updateLinks();
-              this._translatePath(this.path.transition());
-              this._unfreezeFor(2000);
-            }
+            return ((_ref = link.source) === _this.onClickFrom || _ref === _this.onClickTo) && ((_ref1 = link.target) === _this.onClickFrom || _ref1 === _this.onClickTo);
+          }).length > 0;
+          if (!_linkExists) {
+            this.force.links().push(_link);
+            this._updateLinks();
+            this._translatePath(this.path.transition());
+            this._unfreezeFor(2000);
           }
-          this.onClickFrom = null;
-          return this.onClickTo = null;
         }
+        fn();
+        this.onClickFrom = null;
+        return this.onClickTo = null;
       }
     };
 
@@ -308,52 +301,54 @@
       var fromXY, radialMap, restoreXY, toXY, _ref,
         _this = this;
 
-      if (center.id === ((_ref = this.centerNode) != null ? _ref.id : void 0)) {
-        this.showcasing = false;
-        this._translateGraph(this.fromXY);
-        this.fromXY = d3.map();
-        this.centerNode = null;
-        this._restoreOpacity();
-        return this._addOnHover();
-      } else {
-        this.showcasing = true;
-        this.showcasedNodes = [];
-        this.showcasedLinks = [];
-        this.centerNode = center;
-        toXY = d3.map();
-        fromXY = d3.map();
-        this._setFromXY(fromXY, center);
-        toXY.set(center.id, {
-          x: this.Constants.GRAPH_WIDTH / 2,
-          y: this.Constants.GRAPH_HEIGHT / 2
-        });
-        this.showcasedLinks = this.force.links().filter(function(link) {
-          return center === link.source || center === link.target;
-        });
-        this.showcasedNodes = this.showcasedLinks.map(function(link) {
-          if (center === link.source) {
-            return link.target;
-          } else {
-            return link.source;
-          }
-        });
-        this.showcasedNodes.forEach(function(node) {
-          return _this._setFromXY(fromXY, node);
-        });
-        radialMap = RadialPlacement().center(toXY.get(center.id)).keys(this.showcasedNodes.map(function(node) {
-          return node.id;
-        }));
-        this.showcasedNodes.forEach(function(node) {
-          return toXY.set(node.id, radialMap(node.id));
-        });
-        restoreXY = this.Utility.mapAMinusB(this.fromXY, fromXY);
-        [toXY, restoreXY].forEach(function(argMap) {
-          return _this._translateGraph(argMap);
-        });
-        this._highlightShowcased(toXY);
-        this._removeOnHover();
-        this.fromXY = fromXY;
-        return this._postShowcaseInfoToPanel(this.centerNode, this.showcasedLinks);
+      if (this.frozen) {
+        if (center.id === ((_ref = this.centerNode) != null ? _ref.id : void 0)) {
+          this.showcasing = false;
+          this._translateGraph(this.fromXY);
+          this.fromXY = d3.map();
+          this.centerNode = null;
+          this._restoreOpacity();
+          return this._addOnHover();
+        } else {
+          this.showcasing = true;
+          this.showcasedNodes = [];
+          this.showcasedLinks = [];
+          this.centerNode = center;
+          toXY = d3.map();
+          fromXY = d3.map();
+          this._setFromXY(fromXY, center);
+          toXY.set(center.id, {
+            x: this.Constants.GRAPH_WIDTH / 2,
+            y: this.Constants.GRAPH_HEIGHT / 2
+          });
+          this.showcasedLinks = this.force.links().filter(function(link) {
+            return center === link.source || center === link.target;
+          });
+          this.showcasedNodes = this.showcasedLinks.map(function(link) {
+            if (center === link.source) {
+              return link.target;
+            } else {
+              return link.source;
+            }
+          });
+          this.showcasedNodes.forEach(function(node) {
+            return _this._setFromXY(fromXY, node);
+          });
+          radialMap = RadialPlacement().center(toXY.get(center.id)).keys(this.showcasedNodes.map(function(node) {
+            return node.id;
+          }));
+          this.showcasedNodes.forEach(function(node) {
+            return toXY.set(node.id, radialMap(node.id));
+          });
+          restoreXY = this.Utility.mapAMinusB(this.fromXY, fromXY);
+          [toXY, restoreXY].forEach(function(argMap) {
+            return _this._translateGraph(argMap);
+          });
+          this._highlightShowcased(toXY);
+          this._removeOnHover();
+          this.fromXY = fromXY;
+          return this._postShowcaseInfoToPanel(this.centerNode, this.showcasedLinks);
+        }
       }
     };
 
@@ -568,7 +563,6 @@
 
       $('#node-name').text(center.name);
       tableBody = d3.select($('#relationship-table').find('tbody').empty()[0]);
-      console.log(tableBody);
       links = showcasedLinks.map(function(link) {
         var tmp;
 
@@ -585,6 +579,8 @@
     };
 
     MabogoGraph.prototype._setHooks = function() {
+      var _this = this;
+
       $('.nav-tabs').button();
       $('#graph-save').click(function(e) {
         var _this = this;
@@ -597,18 +593,81 @@
       $('#graph-reset').click(function(e) {
         return console.log("reset");
       });
-      $('#link-add').click(function(e) {
-        return console.log($(this).button('toggle'));
+      ['#node-add', '#node-delete', '#link-add', '#link-delete'].forEach(function(selector) {
+        return $(selector).click(function(e) {
+          return _this._addNewUserAction(selector);
+        });
       });
-      return $('#link-mode').click(function(e) {
-        console.log($(e.target).find('input'));
-        console.log($('#link-add').val());
-        console.log($('#link-delete').val());
-        console.log($('#link-update').val());
-        console.log($('#link-add').parent());
-        console.log($('#link-delete').parent());
-        return console.log($('#link-update').parent());
+      return this._setUserActionHooks();
+    };
+
+    MabogoGraph.prototype._setUserActionHooks = function() {
+      var _this = this;
+
+      this.node.on("click", function(d, i) {
+        return _this._userActionDispatcher(d, _this._userNodeAction);
       });
+      this.path.on("click", function(d, i) {
+        return _this._userActionDispatcher(d, _this._userLinkAction);
+      });
+      return $(this.vis[0]).click(function(e) {
+        return _this._userActionDispatcher(null, function(d) {
+          if (_this.activeUserAction[0] === '#node-add') {
+            console.log("add node");
+            return _this._resetUserAction();
+          }
+        });
+      });
+    };
+
+    MabogoGraph.prototype._userActionDispatcher = function(d, dispatcher) {
+      var _ref;
+
+      if (this.frozen) {
+        if (!this.showcasing) {
+          dispatcher(d);
+        }
+      }
+      return (_ref = d3.event) != null ? _ref.stopPropagation() : void 0;
+    };
+
+    MabogoGraph.prototype._userLinkAction = function(d) {
+      switch (this.activeUserAction[0]) {
+        case '#link-delete':
+          console.log('link-delete');
+          return this._resetUserAction();
+        case '#link-update':
+          console.log("link-update");
+          return this._resetUserAction();
+      }
+    };
+
+    MabogoGraph.prototype._userNodeAction = function(d) {
+      switch (this.activeUserAction[0]) {
+        case '#link-add':
+          return this._userAddLink(d, 'friend', this._resetUserAction);
+        case '#node-delete':
+          console.log("node-delete");
+          return this._resetUserAction();
+      }
+    };
+
+    MabogoGraph.prototype._addNewUserAction = function(newUserAction) {
+      var lastUserAction;
+
+      if (this.activeUserAction.length > 0) {
+        lastUserAction = this.activeUserAction.pop();
+        if (newUserAction !== lastUserAction) {
+          $(lastUserAction).button('toggle');
+          return this.activeUserAction.push(newUserAction);
+        }
+      } else {
+        return this.activeUserAction.push(newUserAction);
+      }
+    };
+
+    MabogoGraph.prototype._resetUserAction = function() {
+      return $(this.activeUserAction.pop()).button('toggle');
     };
 
     return MabogoGraph;
