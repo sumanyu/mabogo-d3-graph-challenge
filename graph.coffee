@@ -248,56 +248,46 @@ class MabogoGraph
     console.log "_userUpdateLink"
 
   # Draw's link from one node to another
-  _userLinkAdd: (d, linkType='friend', fn) =>
-    unless @onClickFrom? 
-      @onClickFrom = d
-      console.log @onClickFrom
-    else
-      @onClickTo = d
-      console.log @onClickTo, @onClickFrom
-      unless @onClickFrom.id is @onClickTo.id
-        # add edge to data
-        _link =
-          source: @onClickFrom
-          target: @onClickTo
-          type: linkType
+  _userLinkAdd: (d, linkType='friend') =>
+    _link =
+      source: @onClickFrom
+      target: @onClickTo
+      type: linkType
 
-        _linkExists = @force.links().filter((link) => 
-          link.source in [@onClickFrom, @onClickTo] and link.target in [@onClickFrom, @onClickTo]).length > 0
+    _linkExists = @force.links().filter((link) => 
+      link.source in [@onClickFrom, @onClickTo] and link.target in [@onClickFrom, @onClickTo]).length > 0
 
-        # Add link only if link doesn't exist
-        unless _linkExists
-          @force.links().push _link
-          @_updateLinks()
-          @_translatePath(@path.transition())
-          @_unfreezeFor(2000)
-
-      fn() # cleanup callback
-      @onClickFrom = null
-      @onClickTo = null
+    # Add link only if link doesn't exist
+    unless _linkExists
+      @force.links().push _link
+      @_updateLinks()
+      @_translatePath(@path.transition())
+      @_unfreezeFor(2000)
 
   # Delete link on link's onClick
-  _userLinkDelete: (d, fn) =>
-    console.log 'userDeleteLink'
+  _userLinkDelete: (d) =>
+    links = @force.links().filter((link) => 
+      link.source not in [@onClickFrom, @onClickTo] or link.target not in [@onClickFrom, @onClickTo])
+
+    if links isnt @force.links()
+      @force.links(links)
+      @_updateLinks()
+      @_unfreezeFor(2000)
+
+  _userLinkAction: (d, linkAction, callback) =>
     unless @onClickFrom? 
       @onClickFrom = d
       console.log @onClickFrom
     else
       @onClickTo = d
       console.log @onClickTo, @onClickFrom
+      
       unless @onClickFrom.id is @onClickTo.id
+        linkAction(d)
 
-        links = @force.links().filter((link) => 
-          link.source not in [@onClickFrom, @onClickTo] or link.target not in [@onClickFrom, @onClickTo])
-
-        if links isnt @force.links()
-          @force.links(links)
-          @_updateLinks()
-          @_unfreezeFor(2000)
-
-      fn() # cleanup callback
+      callback() # cleanup callback
       @onClickFrom = null
-      @onClickTo = null
+      @onClickTo = null    
 
   # Where the magic happens
   _showcaseSubnetwork: (center) ->
@@ -525,8 +515,8 @@ class MabogoGraph
     # Nodes -> creating a link, deleting a node
     @node.on("click", (d, i) => @_userActionDispatcher(d, @_userNodeAction))
 
-    # Links -> updating a link, deleting a link
-    @path.on("click", (d, i) => @_userActionDispatcher(d, @_userLinkAction))
+    # # Links -> updating a link, deleting a link
+    # @path.on("click", (d, i) => @_userActionDispatcher(d, @_userLinkAction))
 
     # SVG -> add node
     $(@vis[0]).click (e) =>
@@ -544,23 +534,15 @@ class MabogoGraph
 
     d3.event?.stopPropagation()
 
-  # Links -> updating a link, deleting a link
-  _userLinkAction: (d) =>
-    switch @activeUserAction[0]
-      when '#link-delete'
-        console.log 'link-delete'
-        @_resetUserAction()
-      when '#link-update'
-        console.log "link-update"
-        @_resetUserAction()
-
   # Nodes -> creating a link, deleting a node
   _userNodeAction: (d) =>
     switch @activeUserAction[0]
       when '#link-add'
-        @_userLinkAdd(d, 'friend', @_resetUserAction)
+        @_userLinkAction(d, @_userLinkAdd, @_resetUserAction)
+        # @_userLinkAdd(d, 'friend', @_resetUserAction)
       when '#link-delete'
-        @_userLinkDelete(d, @_resetUserAction)
+        @_userLinkAction(d, @_userLinkDelete, @_resetUserAction)
+        # @_userLinkDelete(d, @_resetUserAction)
       when '#node-delete'
         console.log "node-delete"
         @_resetUserAction()
