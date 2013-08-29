@@ -143,11 +143,11 @@
       this._changeFixedTo = __bind(this._changeFixedTo, this);
       this._freezeAfter = __bind(this._freezeAfter, this);
       this._unfreezeFor = __bind(this._unfreezeFor, this);
-      this._userAddLink = __bind(this._userAddLink, this);
-      this._userUpdateLink = __bind(this._userUpdateLink, this);
-      this._userDeleteNode = __bind(this._userDeleteNode, this);
-      this._userAddNode = __bind(this._userAddNode, this);
-      this._userDeleteLink = __bind(this._userDeleteLink, this);
+      this._userLinkDelete = __bind(this._userLinkDelete, this);
+      this._userLinkAdd = __bind(this._userLinkAdd, this);
+      this._userLinkUpdate = __bind(this._userLinkUpdate, this);
+      this._userNodeDelete = __bind(this._userNodeDelete, this);
+      this._userNodeAdd = __bind(this._userNodeAdd, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
       this._setup();
@@ -244,23 +244,19 @@
       return this.node.exit().remove();
     };
 
-    MabogoGraph.prototype._userDeleteLink = function(d) {
-      return console.log('userDeleteLink');
-    };
-
-    MabogoGraph.prototype._userAddNode = function(d) {
+    MabogoGraph.prototype._userNodeAdd = function(d) {
       return console.log("_userAddNode");
     };
 
-    MabogoGraph.prototype._userDeleteNode = function(d) {
+    MabogoGraph.prototype._userNodeDelete = function(d) {
       return console.log("_userDeleteNode");
     };
 
-    MabogoGraph.prototype._userUpdateLink = function(d) {
+    MabogoGraph.prototype._userLinkUpdate = function(d) {
       return console.log("_userUpdateLink");
     };
 
-    MabogoGraph.prototype._userAddLink = function(d, linkType, fn) {
+    MabogoGraph.prototype._userLinkAdd = function(d, linkType, fn) {
       var _link, _linkExists,
         _this = this;
 
@@ -288,6 +284,35 @@
             this.force.links().push(_link);
             this._updateLinks();
             this._translatePath(this.path.transition());
+            this._unfreezeFor(2000);
+          }
+        }
+        fn();
+        this.onClickFrom = null;
+        return this.onClickTo = null;
+      }
+    };
+
+    MabogoGraph.prototype._userLinkDelete = function(d, fn) {
+      var links,
+        _this = this;
+
+      console.log('userDeleteLink');
+      if (this.onClickFrom == null) {
+        this.onClickFrom = d;
+        return console.log(this.onClickFrom);
+      } else {
+        this.onClickTo = d;
+        console.log(this.onClickTo, this.onClickFrom);
+        if (this.onClickFrom.id !== this.onClickTo.id) {
+          links = this.force.links().filter(function(link) {
+            var _ref, _ref1;
+
+            return ((_ref = link.source) !== _this.onClickFrom && _ref !== _this.onClickTo) || ((_ref1 = link.target) !== _this.onClickFrom && _ref1 !== _this.onClickTo);
+          });
+          if (links !== this.force.links()) {
+            this.force.links(links);
+            this._updateLinks();
             this._unfreezeFor(2000);
           }
         }
@@ -645,7 +670,9 @@
     MabogoGraph.prototype._userNodeAction = function(d) {
       switch (this.activeUserAction[0]) {
         case '#link-add':
-          return this._userAddLink(d, 'friend', this._resetUserAction);
+          return this._userLinkAdd(d, 'friend', this._resetUserAction);
+        case '#link-delete':
+          return this._userLinkDelete(d, this._resetUserAction);
         case '#node-delete':
           console.log("node-delete");
           return this._resetUserAction();

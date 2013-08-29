@@ -235,24 +235,20 @@ class MabogoGraph
 
     @node.exit().remove()
 
-  # Delete link on link's onClick
-  _userDeleteLink: (d) =>
-    console.log 'userDeleteLink'
-
   # Add new node on SVG's onClick
-  _userAddNode: (d) =>
+  _userNodeAdd: (d) =>
     console.log "_userAddNode"
 
   # Delete node, links, text on node's onClick
-  _userDeleteNode: (d) =>
+  _userNodeDelete: (d) =>
     console.log "_userDeleteNode"
 
   # Change link type on link's onClick
-  _userUpdateLink: (d) =>
+  _userLinkUpdate: (d) =>
     console.log "_userUpdateLink"
 
   # Draw's link from one node to another
-  _userAddLink: (d, linkType='friend', fn) =>
+  _userLinkAdd: (d, linkType='friend', fn) =>
     unless @onClickFrom? 
       @onClickFrom = d
       console.log @onClickFrom
@@ -274,6 +270,29 @@ class MabogoGraph
           @force.links().push _link
           @_updateLinks()
           @_translatePath(@path.transition())
+          @_unfreezeFor(2000)
+
+      fn() # cleanup callback
+      @onClickFrom = null
+      @onClickTo = null
+
+  # Delete link on link's onClick
+  _userLinkDelete: (d, fn) =>
+    console.log 'userDeleteLink'
+    unless @onClickFrom? 
+      @onClickFrom = d
+      console.log @onClickFrom
+    else
+      @onClickTo = d
+      console.log @onClickTo, @onClickFrom
+      unless @onClickFrom.id is @onClickTo.id
+
+        links = @force.links().filter((link) => 
+          link.source not in [@onClickFrom, @onClickTo] or link.target not in [@onClickFrom, @onClickTo])
+
+        if links isnt @force.links()
+          @force.links(links)
+          @_updateLinks()
           @_unfreezeFor(2000)
 
       fn() # cleanup callback
@@ -539,7 +558,9 @@ class MabogoGraph
   _userNodeAction: (d) =>
     switch @activeUserAction[0]
       when '#link-add'
-        @_userAddLink(d, 'friend', @_resetUserAction)
+        @_userLinkAdd(d, 'friend', @_resetUserAction)
+      when '#link-delete'
+        @_userLinkDelete(d, @_resetUserAction)
       when '#node-delete'
         console.log "node-delete"
         @_resetUserAction()
