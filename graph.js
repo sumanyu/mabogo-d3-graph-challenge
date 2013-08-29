@@ -289,6 +289,7 @@
       } else {
         this.showcasing = true;
         this.showcasedNodes = [];
+        this.showcasedLinks = [];
         this.centerNode = center;
         toXY = d3.map();
         fromXY = d3.map();
@@ -297,9 +298,10 @@
           x: this.Constants.GRAPH_WIDTH / 2,
           y: this.Constants.GRAPH_HEIGHT / 2
         });
-        this.showcasedNodes = this.force.links().filter(function(link) {
+        this.showcasedLinks = this.force.links().filter(function(link) {
           return center === link.source || center === link.target;
-        }).map(function(link) {
+        });
+        this.showcasedNodes = this.showcasedLinks.map(function(link) {
           if (center === link.source) {
             return link.target;
           } else {
@@ -321,7 +323,8 @@
         });
         this._highlightShowcased(toXY);
         this._removeOnHover();
-        return this.fromXY = fromXY;
+        this.fromXY = fromXY;
+        return this._postShowcaseInfoToPanel(this.centerNode, this.showcasedLinks);
       }
     };
 
@@ -528,6 +531,27 @@
         dy = d.target.y - d.source.y;
         dr = Math.sqrt(dx * dx + dy * dy);
         return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+      });
+    };
+
+    MabogoGraph.prototype._postShowcaseInfoToPanel = function(center, showcasedLinks) {
+      var links, tableBody;
+
+      $('#node-name').text(center.name);
+      tableBody = d3.select($('#relationship-table').find('tbody').empty()[0]);
+      console.log(tableBody);
+      links = showcasedLinks.map(function(link) {
+        var tmp;
+
+        return tmp = {
+          name: link.source === center ? link.target.name : link.source.name,
+          type: link.type
+        };
+      });
+      return tableBody.selectAll('tr').data(links).enter().append('tr').selectAll('td').data(function(d) {
+        return [d.name, d.type];
+      }).enter().append('td').text(function(d) {
+        return d;
       });
     };
 

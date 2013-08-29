@@ -52,3 +52,9 @@ text.shadow {
 .btn-save, .btn-reset {
   width: 137px;
 }
+
+div#graph-info {
+  min-height: 200px;
+  max-height: 200px;
+  overflow: auto;
+}

@@ -282,6 +282,7 @@ class MabogoGraph
     else
       @showcasing = true
       @showcasedNodes = []
+      @showcasedLinks = []
       @centerNode = center
 
       toXY = d3.map()
@@ -292,9 +293,9 @@ class MabogoGraph
       toXY.set(center.id, {x: @Constants.GRAPH_WIDTH/2, y: @Constants.GRAPH_HEIGHT/2})
 
       # Add all associated 1 degree nodes
-      @showcasedNodes = @force.links()
+      @showcasedLinks = @force.links()
                               .filter((link) => center in [link.source, link.target])
-                              .map((link) => if center is link.source then link.target else link.source)
+      @showcasedNodes = @showcasedLinks.map((link) => if center is link.source then link.target else link.source)
 
       @showcasedNodes.forEach (node) => @_setFromXY(fromXY, node)
 
@@ -320,6 +321,8 @@ class MabogoGraph
       @_removeOnHover()
 
       @fromXY = fromXY
+
+      @_postShowcaseInfoToPanel(@centerNode, @showcasedLinks)
 
   _addOnHover: ->
     context = @
@@ -441,6 +444,28 @@ class MabogoGraph
       dr = Math.sqrt(dx * dx + dy * dy)
       "M#{d.source.x},#{d.source.y}A#{dr},#{dr} 0 0,1 #{d.target.x},#{d.target.y}"
     )
+
+  _postShowcaseInfoToPanel: (center, showcasedLinks) ->
+    $('#node-name').text center.name
+
+    tableBody = d3.select($('#relationship-table').find('tbody').empty()[0])
+
+    console.log tableBody
+
+    links = showcasedLinks.map (link) -> 
+      tmp = 
+        name: if link.source is center then link.target.name else link.source.name
+        type: link.type
+
+    tableBody.selectAll('tr')
+      .data(links)
+      .enter()
+      .append('tr')
+      .selectAll('td')
+      .data((d) -> [d.name, d.type])
+      .enter()
+      .append('td')
+      .text((d) -> d)
 
   _setHooks: ->
     $('.nav-tabs').button()
