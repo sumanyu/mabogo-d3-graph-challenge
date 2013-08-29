@@ -269,7 +269,7 @@ class MabogoGraph
     links = @force.links().filter((link) => 
       link.source not in [@onClickFrom, @onClickTo] or link.target not in [@onClickFrom, @onClickTo])
 
-    if links isnt @force.links()
+    if links.length isnt @force.links().length
       @force.links(links)
       @_updateLinks()
       @_unfreezeFor(2000)
@@ -539,10 +539,8 @@ class MabogoGraph
     switch @activeUserAction[0]
       when '#link-add'
         @_userLinkAction(d, @_userLinkAdd, @_resetUserAction)
-        # @_userLinkAdd(d, 'friend', @_resetUserAction)
       when '#link-delete'
         @_userLinkAction(d, @_userLinkDelete, @_resetUserAction)
-        # @_userLinkDelete(d, @_resetUserAction)
       when '#node-delete'
         console.log "node-delete"
         @_resetUserAction()

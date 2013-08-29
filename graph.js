@@ -290,7 +290,7 @@
 
         return ((_ref = link.source) !== _this.onClickFrom && _ref !== _this.onClickTo) || ((_ref1 = link.target) !== _this.onClickFrom && _ref1 !== _this.onClickTo);
       });
-      if (links !== this.force.links()) {
+      if (links.length !== this.force.links().length) {
         this.force.links(links);
         this._updateLinks();
         return this._unfreezeFor(2000);
