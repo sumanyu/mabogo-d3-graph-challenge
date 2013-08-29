@@ -137,6 +137,8 @@ class MabogoGraph
 
     @showcasing = false
 
+    @userActions = []
+
   # Nodes expect the following fields
   # Randomly assigned values if not supplied
     # index - the zero-based index of the node within the nodes array.
@@ -228,14 +230,32 @@ class MabogoGraph
       .attr("y", (d) -> d.y)
       .style("fill", (d) => @colorScale(d.type))
       .on("dblclick", (d, i) => @_showcaseSubnetwork(d) if @frozen )
-      .on("click", (d, i) => @_addLink(d) if @frozen )
+      .on("click", (d, i) => @_userAction(d) if @frozen )
 
     @_addOnHover()
 
     @node.exit().remove()
 
+  _userAction: (d) =>
+    console.log $('#link-add').val()
+    console.log $('#link-delete').val()
+    console.log $('#link-update').val()
+    console.log $('input:radio[name=options]:checked').val()
+
+  _userDeleteLink: (d) =>
+    console.log 'userDeleteLink'
+
+  _userAddNode: (d) =>
+    console.log "_userAddNode"
+
+  _userDeleteNode: (d) =>
+    console.log "_userDeleteNode"
+
+  _userUpdateLink: (d) =>
+    console.log "_userUpdateLink"
+
   # Draw's link from one node to another
-  _addLink: (d) =>
+  _userAddLink: (d) =>
     # Must not be showcasing
     unless @showcasing
       unless @onClickFrom? 
@@ -477,6 +497,18 @@ class MabogoGraph
     $('#graph-reset').click (e) ->
       console.log "reset"
 
+    $('#link-add').click (e) ->
+      console.log $(@).button('toggle')
+
+    $('#link-mode').click (e) ->
+      console.log $(e.target).find('input')
+      # $(e.target).find('input').parent().click((event) -> event.stopPropagation())
+      console.log $('#link-add').val()
+      console.log $('#link-delete').val()
+      console.log $('#link-update').val()
+      console.log $('#link-add').parent()
+      console.log $('#link-delete').parent()
+      console.log $('#link-update').parent()
 $ ->
   $("#mobogo-graph-container").each ->
     d3.json "data.json", (err, data) =>

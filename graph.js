@@ -138,7 +138,12 @@
       this._changeFixedTo = __bind(this._changeFixedTo, this);
       this._freezeAfter = __bind(this._freezeAfter, this);
       this._unfreezeFor = __bind(this._unfreezeFor, this);
-      this._addLink = __bind(this._addLink, this);
+      this._userAddLink = __bind(this._userAddLink, this);
+      this._userUpdateLink = __bind(this._userUpdateLink, this);
+      this._userDeleteNode = __bind(this._userDeleteNode, this);
+      this._userAddNode = __bind(this._userAddNode, this);
+      this._userDeleteLink = __bind(this._userDeleteLink, this);
+      this._userAction = __bind(this._userAction, this);
       this.vis = this.body.find("svg#mobogo-graph");
       this.svg = d3.select(this.vis[0]);
       this._setup();
@@ -154,7 +159,8 @@
       this.force = d3.layout.force().size([this.Constants.GRAPH_WIDTH, this.Constants.GRAPH_HEIGHT]).linkDistance(110).charge(-600);
       this.frozen = false;
       this.fromXY = d3.map();
-      return this.showcasing = false;
+      this.showcasing = false;
+      return this.userActions = [];
     };
 
     MabogoGraph.prototype._updateData = function(nodes, links) {
@@ -233,14 +239,37 @@
         }
       }).on("click", function(d, i) {
         if (_this.frozen) {
-          return _this._addLink(d);
+          return _this._userAction(d);
         }
       });
       this._addOnHover();
       return this.node.exit().remove();
     };
 
-    MabogoGraph.prototype._addLink = function(d) {
+    MabogoGraph.prototype._userAction = function(d) {
+      console.log($('#link-add').val());
+      console.log($('#link-delete').val());
+      console.log($('#link-update').val());
+      return console.log($('input:radio[name=options]:checked').val());
+    };
+
+    MabogoGraph.prototype._userDeleteLink = function(d) {
+      return console.log('userDeleteLink');
+    };
+
+    MabogoGraph.prototype._userAddNode = function(d) {
+      return console.log("_userAddNode");
+    };
+
+    MabogoGraph.prototype._userDeleteNode = function(d) {
+      return console.log("_userDeleteNode");
+    };
+
+    MabogoGraph.prototype._userUpdateLink = function(d) {
+      return console.log("_userUpdateLink");
+    };
+
+    MabogoGraph.prototype._userAddLink = function(d) {
       var _link, _linkExists,
         _this = this;
 
@@ -565,8 +594,20 @@
           return $(_this).button('reset');
         }), 2000);
       });
-      return $('#graph-reset').click(function(e) {
+      $('#graph-reset').click(function(e) {
         return console.log("reset");
+      });
+      $('#link-add').click(function(e) {
+        return console.log($(this).button('toggle'));
+      });
+      return $('#link-mode').click(function(e) {
+        console.log($(e.target).find('input'));
+        console.log($('#link-add').val());
+        console.log($('#link-delete').val());
+        console.log($('#link-update').val());
+        console.log($('#link-add').parent());
+        console.log($('#link-delete').parent());
+        return console.log($('#link-update').parent());
       });
     };
 
