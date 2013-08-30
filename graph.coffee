@@ -235,13 +235,47 @@ class MabogoGraph
 
     @node.exit().remove()
 
+  _updateText: ->
+    @text = @textG.selectAll("g")
+              .data(@force.nodes())
+            
+    do (g = @text.enter().append("svg:g")) => 
+      ["shadow", "lbl"].forEach (clss) =>
+        g.append("svg:text")
+            .attr("x", 8)
+            .attr("y", ".31em")
+            .attr("class", clss)
+            .text((d) -> d.name)
+
+    @text.exit().remove()
+
   # Add new node on SVG's onClick
   _userNodeAdd: (d) =>
     console.log "_userAddNode"
 
   # Delete node, links, text on node's onClick
-  _userNodeDelete: (d) =>
+  _userNodeDelete: (d, callback) =>
     console.log "_userDeleteNode"
+
+    # Delete node
+    nodes = @force.nodes().filter((node) => node isnt d)
+    console.log nodes
+    @force.nodes(nodes)
+
+    # Delete links
+    links = @force.links().filter((link) => d not in [link.source, link.target])
+    console.log nodes
+    @force.links(links)
+
+    # Update UI
+    @_updateNodes()
+    @_updateLinks()
+    
+    # Remove text
+    $(@textG[0]).find("text").filter((index)->$(@).text() is d.name).parent().remove()
+
+    @_unfreezeFor(2000)
+    callback()
 
   # Change link type on link's onClick
   _userLinkUpdate: (d) =>
@@ -417,20 +451,6 @@ class MabogoGraph
 
     d3.select(obj).style("fill", @colorScale(d.type))
 
-  _updateText: ->
-    @text = @textG.selectAll("g")
-              .data(@force.nodes())
-            
-    do (g = @text.enter().append("svg:g")) => 
-      ["shadow", "lbl"].forEach (clss) =>
-        g.append("svg:text")
-            .attr("x", 8)
-            .attr("y", ".31em")
-            .attr("class", clss)
-            .text((d) -> d.name)
-
-    @text.exit().remove()
-
   _unfreezeFor: (time) =>
     @_unfreezeNodes()
     @_updateNodes()
@@ -536,14 +556,14 @@ class MabogoGraph
 
   # Nodes -> creating a link, deleting a node
   _userNodeAction: (d) =>
+    console.log d
     switch @activeUserAction[0]
       when '#link-add'
         @_userLinkAction(d, @_userLinkAdd, @_resetUserAction)
       when '#link-delete'
         @_userLinkAction(d, @_userLinkDelete, @_resetUserAction)
       when '#node-delete'
-        console.log "node-delete"
-        @_resetUserAction()
+        @_userNodeDelete(d, @_resetUserAction)
 
   # Ensures only one button is toggled at one time
   _addNewUserAction: (newUserAction) ->

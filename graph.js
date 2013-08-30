@@ -244,12 +244,46 @@
       return this.node.exit().remove();
     };
 
+    MabogoGraph.prototype._updateText = function() {
+      var _this = this;
+
+      this.text = this.textG.selectAll("g").data(this.force.nodes());
+      (function(g) {
+        return ["shadow", "lbl"].forEach(function(clss) {
+          return g.append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", clss).text(function(d) {
+            return d.name;
+          });
+        });
+      })(this.text.enter().append("svg:g"));
+      return this.text.exit().remove();
+    };
+
     MabogoGraph.prototype._userNodeAdd = function(d) {
       return console.log("_userAddNode");
     };
 
-    MabogoGraph.prototype._userNodeDelete = function(d) {
-      return console.log("_userDeleteNode");
+    MabogoGraph.prototype._userNodeDelete = function(d, callback) {
+      var links, nodes,
+        _this = this;
+
+      console.log("_userDeleteNode");
+      nodes = this.force.nodes().filter(function(node) {
+        return node !== d;
+      });
+      console.log(nodes);
+      this.force.nodes(nodes);
+      links = this.force.links().filter(function(link) {
+        return d !== link.source && d !== link.target;
+      });
+      console.log(nodes);
+      this.force.links(links);
+      this._updateNodes();
+      this._updateLinks();
+      $(this.textG[0]).find("text").filter(function(index) {
+        return $(this).text() === d.name;
+      }).parent().remove();
+      this._unfreezeFor(2000);
+      return callback();
     };
 
     MabogoGraph.prototype._userLinkUpdate = function(d) {
@@ -494,20 +528,6 @@
       return d3.select(obj).style("fill", this.colorScale(d.type));
     };
 
-    MabogoGraph.prototype._updateText = function() {
-      var _this = this;
-
-      this.text = this.textG.selectAll("g").data(this.force.nodes());
-      (function(g) {
-        return ["shadow", "lbl"].forEach(function(clss) {
-          return g.append("svg:text").attr("x", 8).attr("y", ".31em").attr("class", clss).text(function(d) {
-            return d.name;
-          });
-        });
-      })(this.text.enter().append("svg:g"));
-      return this.text.exit().remove();
-    };
-
     MabogoGraph.prototype._unfreezeFor = function(time) {
       this._unfreezeNodes();
       this._updateNodes();
@@ -645,14 +665,14 @@
     };
 
     MabogoGraph.prototype._userNodeAction = function(d) {
+      console.log(d);
       switch (this.activeUserAction[0]) {
         case '#link-add':
           return this._userLinkAction(d, this._userLinkAdd, this._resetUserAction);
         case '#link-delete':
           return this._userLinkAction(d, this._userLinkDelete, this._resetUserAction);
         case '#node-delete':
-          console.log("node-delete");
-          return this._resetUserAction();
+          return this._userNodeDelete(d, this._resetUserAction);
       }
     };
 
