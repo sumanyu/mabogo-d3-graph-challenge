@@ -133,7 +133,6 @@
       this._resetUserAction = __bind(this._resetUserAction, this);
       this._userNodeAction = __bind(this._userNodeAction, this);
       this._userActionDispatcher = __bind(this._userActionDispatcher, this);
-      this._setUserActionHooks = __bind(this._setUserActionHooks, this);
       this._translatePath = __bind(this._translatePath, this);
       this._translateXY = __bind(this._translateXY, this);
       this._updateTick = __bind(this._updateTick, this);
@@ -239,6 +238,8 @@
         return _this.colorScale(d.type);
       }).on("dblclick", function(d, i) {
         return _this._showcaseSubnetwork(d);
+      }).on("click", function(d, i) {
+        return _this._userActionDispatcher(d, _this._userNodeAction);
       });
       this._addOnHover();
       return this.node.exit().remove();
@@ -634,19 +635,25 @@
           return _this._addNewUserAction(selector);
         });
       });
-      return this._setUserActionHooks();
-    };
-
-    MabogoGraph.prototype._setUserActionHooks = function() {
-      var _this = this;
-
-      this.node.on("click", function(d, i) {
-        return _this._userActionDispatcher(d, _this._userNodeAction);
-      });
       return $(this.vis[0]).click(function(e) {
         return _this._userActionDispatcher(null, function(d) {
+          var node;
+
           if (_this.activeUserAction[0] === '#node-add') {
             console.log("add node");
+            node = {
+              id: 9000,
+              name: "Test Node",
+              type: 2,
+              links: 15,
+              radius: 10,
+              x: window.event.clientX,
+              y: window.event.clientY
+            };
+            _this.force.nodes().push(node);
+            _this._updateNodes();
+            _this._updateText();
+            _this._unfreezeFor(2000);
             return _this._resetUserAction();
           }
         });

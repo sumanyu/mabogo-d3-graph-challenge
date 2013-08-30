@@ -230,6 +230,8 @@ class MabogoGraph
       .attr("y", (d) -> d.y)
       .style("fill", (d) => @colorScale(d.type))
       .on("dblclick", (d, i) => @_showcaseSubnetwork(d))
+      .on("click", (d, i) => @_userActionDispatcher(d, @_userNodeAction))
+      # Nodes -> creating a link, deleting a node
 
     @_addOnHover()
 
@@ -528,21 +530,28 @@ class MabogoGraph
         # dedicated fn
         @_addNewUserAction(selector)
 
-    @_setUserActionHooks()
-
-  # Hooks for nodes, links and SVG
-  _setUserActionHooks: =>
-    # Nodes -> creating a link, deleting a node
-    @node.on("click", (d, i) => @_userActionDispatcher(d, @_userNodeAction))
-
-    # # Links -> updating a link, deleting a link
-    # @path.on("click", (d, i) => @_userActionDispatcher(d, @_userLinkAction))
-
     # SVG -> add node
     $(@vis[0]).click (e) =>
       @_userActionDispatcher(null, (d) => 
         if @activeUserAction[0] is '#node-add'
           console.log "add node"
+
+          node = 
+            id: 9000
+            name: "Test Node"
+            type: 2
+            links: 15
+            radius: 10
+            x: window.event.clientX
+            y: window.event.clientY
+
+          @force.nodes().push node
+
+          @_updateNodes()
+          @_updateText()
+
+          @_unfreezeFor(2000)
+
           @_resetUserAction())
 
   _userActionDispatcher: (d, dispatcher) =>
